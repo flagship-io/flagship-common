@@ -10,7 +10,7 @@ import (
 func testVariationGroupAlloc(vg VariationsGroup, t *testing.T) {
 	counts := []int{}
 	for i := 1; i < 100000; i++ {
-		vID, err := GetRandomAllocation(strconv.Itoa(rand.Int()), &vg)
+		vAlloc, err := GetRandomAllocation(strconv.Itoa(rand.Int()), &vg)
 
 		if err != nil {
 			log.Println(err.Error())
@@ -18,7 +18,7 @@ func testVariationGroupAlloc(vg VariationsGroup, t *testing.T) {
 		}
 
 		for i, v := range vg.Variations {
-			if v.ID == vID {
+			if v.ID == vAlloc.ID {
 				for len(counts) <= i {
 					counts = append(counts, 0)
 				}

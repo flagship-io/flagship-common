@@ -9,12 +9,12 @@ import (
 var hash = murmur3.New32()
 
 // GetRandomAllocation returns a random allocation for a variationGroup
-func GetRandomAllocation(visitorID string, variationGroup *VariationsGroup) (string, error) {
+func GetRandomAllocation(visitorID string, variationGroup *VariationsGroup) (*Variation, error) {
 	hash.Reset()
 	_, err := hash.Write([]byte(variationGroup.ID + visitorID))
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	hashed := hash.Sum32()
@@ -22,10 +22,10 @@ func GetRandomAllocation(visitorID string, variationGroup *VariationsGroup) (str
 
 	for _, v := range variationGroup.Variations {
 		if float32(z) < v.Traffic {
-			return v.ID, nil
+			return v, nil
 		}
 	}
 
 	// If no variation alloc, returns empty
-	return "", errors.New("Visitor untracked")
+	return nil, errors.New("Visitor untracked")
 }
