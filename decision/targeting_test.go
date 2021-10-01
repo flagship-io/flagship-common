@@ -52,11 +52,7 @@ func testTargetingListString(operator targeting.Targeting_TargetingOperator, tar
 				Values: stringValues,
 			},
 		},
-	}, &protoStruct.Value{
-		Kind: &protoStruct.Value_StringValue{
-			StringValue: value,
-		},
-	})
+	}, value)
 
 	if ((err != nil && !shouldRaiseError) || (shouldRaiseError && err == nil)) || (match != shouldMatch) {
 		t.Errorf("Targeting list %v not working - tv : %v, v: %v, match : %v, err: %v", operator, targetingValues, value, match, err)
@@ -229,26 +225,14 @@ func TestComplexTargeting(t *testing.T) {
 		},
 	}
 
-	context := map[string]*structpb.Value{}
-	context["accountName"] = &structpb.Value{
-		Kind: &structpb.Value_StringValue{
-			StringValue: "Flagship Demo",
-		},
-	}
-	context["featureType"] = &structpb.Value{
-		Kind: &structpb.Value_StringValue{
-			StringValue: "deployment",
-		},
-	}
+	context := make(map[string]interface{})
+	context["accountName"] = "Flagship Demo"
+	context["featureType"] = "deployment"
 	test, err := TargetingMatch(vgTest, "test@abtasty.com", context)
 	assert.Nil(t, err)
 	assert.True(t, test)
 
-	context["featureType"] = &structpb.Value{
-		Kind: &structpb.Value_StringValue{
-			StringValue: "ab",
-		},
-	}
+	context["featureType"] = "ab"
 	test, err = TargetingMatch(vgTest, "test@abtasty.com", context)
 	assert.Nil(t, err)
 	assert.False(t, test)
