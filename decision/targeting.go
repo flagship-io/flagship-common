@@ -11,7 +11,7 @@ import (
 )
 
 // TargetingMatch returns true if a visitor ID and context match the variationGroup targeting
-func TargetingMatch(variationGroup *VariationsGroup, visitorID string, context map[string]interface{}) (bool, error) {
+func TargetingMatch(variationGroup *VariationsGroup, visitorID string, context map[string]*protoStruct.Value) (bool, error) {
 	globalMatch := false
 	for _, targetingGroup := range variationGroup.Targetings.GetTargetingGroups() {
 		matchGroup := len(targetingGroup.GetTargetings()) > 0
@@ -21,7 +21,11 @@ func TargetingMatch(variationGroup *VariationsGroup, visitorID string, context m
 			case "fs_all_users":
 				return true, nil
 			case "fs_users":
-				v = visitorID
+				v = &protoStruct.Value{
+					Kind: &protoStruct.Value_StringValue{
+						StringValue: visitorID,
+					},
+				}
 				ok = true
 			}
 
@@ -50,19 +54,17 @@ func isORListOperator(operator targeting.Targeting_TargetingOperator) bool {
 	return operator == targeting.Targeting_CONTAINS || operator == targeting.Targeting_EQUALS
 }
 
-func targetingMatchOperator(operator targeting.Targeting_TargetingOperator, targetingValue *protoStruct.Value, contextValue interface{}) (bool, error) {
+func targetingMatchOperator(operator targeting.Targeting_TargetingOperator, targetingValue *protoStruct.Value, contextValue *protoStruct.Value) (bool, error) {
 	match := false
 	var err error
 
-	isList := strings.Contains(reflect.TypeOf(contextValue).String(), "[]")
-	if isList {
-		listValues := contextValue.([]interface{})
+	listValues := contextValue.GetListValue()
+	if listValues != nil && len(listValues.GetValues()) > 0 && listValues.GetValues()[0].GetKind() != targetingValue.GetKind() {
+		return false, errors.New("Targeting and Context list value kinds mismatch")
+	}
 
-		if isList && len(listValues) > 0 && listValues[0] != targetingValue.AsInterface() {
-			return false, errors.New("targeting and context list value kinds mismatch")
-		}
-
-		for _, v := range listValues {
+	if listValues != nil {
+		for _, v := range listValues.GetValues() {
 			subValueMatch, err := targetingMatchOperator(operator, targetingValue, v)
 			if err != nil {
 				return false, nil
@@ -78,22 +80,24 @@ func targetingMatchOperator(operator targeting.Targeting_TargetingOperator, targ
 	}
 
 	// Except for targeting value of type list, check that context and targeting types are equals
-	if targetingValue.GetListValue() == nil && reflect.TypeOf(targetingValue.AsInterface()) != reflect.TypeOf(contextValue) {
-		return false, errors.New("targeting and context value kinds mismatch")
+	if targetingValue.GetListValue() == nil && reflect.TypeOf(targetingValue.GetKind()) != reflect.TypeOf(contextValue.GetKind()) {
+		return false, errors.New("Targeting and Context value kinds mismatch")
 	}
 
 	switch targetingValue.Kind.(type) {
 	case (*protoStruct.Value_StringValue):
 		targetingValueCasted := targetingValue.GetStringValue()
-		contextValueCasted := contextValue.(string)
+		contextValueCasted := contextValue.GetStringValue()
 		match, err = targetingMatchOperatorString(operator, targetingValueCasted, contextValueCasted)
+		break
 	case (*protoStruct.Value_BoolValue):
 		targetingValueCasted := targetingValue.GetBoolValue()
-		contextValueCasted := contextValue.(bool)
+		contextValueCasted := contextValue.GetBoolValue()
 		match, err = targetingMatchOperatorBool(operator, targetingValueCasted, contextValueCasted)
+		break
 	case (*protoStruct.Value_NumberValue):
 		targetingValueCasted := targetingValue.GetNumberValue()
-		contextValueCasted := contextValue.(float64)
+		contextValueCasted := contextValue.GetNumberValue()
 		match, err = targetingMatchOperatorNumber(operator, targetingValueCasted, contextValueCasted)
 	case (*protoStruct.Value_ListValue):
 		targetingList := targetingValue.GetListValue()
@@ -137,7 +141,7 @@ func targetingMatchOperatorString(operator targeting.Targeting_TargetingOperator
 	// 	match, err := regexp.MatchString(targetingValue, contextValue)
 	// 	return match, err
 	default:
-		return false, errors.New("operator not handled")
+		return false, errors.New("Operator not handled")
 	}
 }
 
@@ -156,7 +160,7 @@ func targetingMatchOperatorNumber(operator targeting.Targeting_TargetingOperator
 	case targeting.Targeting_NOT_EQUALS:
 		return contextValue != targetingValue, nil
 	default:
-		return false, errors.New("operator not handled")
+		return false, errors.New("Operator not handled")
 	}
 }
 
@@ -167,6 +171,6 @@ func targetingMatchOperatorBool(operator targeting.Targeting_TargetingOperator, 
 	case targeting.Targeting_NOT_EQUALS:
 		return contextValue != targetingValue, nil
 	default:
-		return false, errors.New("operator not handled")
+		return false, errors.New("Operator not handled")
 	}
 }
