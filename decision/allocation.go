@@ -9,7 +9,7 @@ import (
 var hash = murmur3.New32()
 
 // GetRandomAllocation returns a random allocation for a variationGroup
-func GetRandomAllocation(visitorID string, variationGroup *VariationsGroup) (*Variation, error) {
+func GetRandomAllocation(visitorID string, variationGroup *VariationsGroup, isCumulativeAlloc bool) (*Variation, error) {
 	hash.Reset()
 	_, err := hash.Write([]byte(variationGroup.ID + visitorID))
 
@@ -18,12 +18,15 @@ func GetRandomAllocation(visitorID string, variationGroup *VariationsGroup) (*Va
 	}
 
 	hashed := hash.Sum32()
-	z := hashed % 100
+	z := float32(hashed % 100)
 
-	sumAlloc := 0
+	sumAlloc := float32(0)
 	for _, v := range variationGroup.Variations {
-		sumAlloc += int(v.Allocation)
-		if int(z) < sumAlloc {
+		sumAlloc += v.Allocation
+		if isCumulativeAlloc {
+			sumAlloc = v.Allocation
+		}
+		if z < sumAlloc {
 			return v, nil
 		}
 	}

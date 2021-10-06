@@ -7,10 +7,10 @@ import (
 	"testing"
 )
 
-func testVariationGroupAlloc(vg VariationsGroup, t *testing.T) {
+func testVariationGroupAlloc(vg VariationsGroup, t *testing.T, isCumulativeAlloc bool) {
 	counts := []int{}
 	for i := 1; i < 100000; i++ {
-		vAlloc, err := GetRandomAllocation(strconv.Itoa(rand.Int()), &vg)
+		vAlloc, err := GetRandomAllocation(strconv.Itoa(rand.Int()), &vg, isCumulativeAlloc)
 
 		if err != nil {
 			log.Println(err.Error())
@@ -34,9 +34,13 @@ func testVariationGroupAlloc(vg VariationsGroup, t *testing.T) {
 	}
 
 	nbVarWithTraffic := 0
+	hasVariationFullTraffic := false
 	for i, v := range vg.Variations {
-		if i == 0 || i > 0 && v.Allocation != 0 {
+		if i == 0 || i > 0 && v.Allocation != 0 && !hasVariationFullTraffic {
 			nbVarWithTraffic++
+		}
+		if v.Allocation == 100 {
+			hasVariationFullTraffic = true
 		}
 	}
 
@@ -52,10 +56,13 @@ func testVariationGroupAlloc(vg VariationsGroup, t *testing.T) {
 
 	previousRatio := float32(0)
 	for i, v := range counts {
-		if i >= 1 {
-			previousRatio += vg.Variations[i-1].Allocation
+		correctRatio := vg.Variations[i].Allocation / 100
+		if isCumulativeAlloc {
+			if i >= 1 {
+				previousRatio += vg.Variations[i-1].Allocation
+			}
+			correctRatio = (vg.Variations[i].Allocation - previousRatio) / 100
 		}
-		correctRatio := (vg.Variations[i].Allocation - previousRatio) / 100
 		ratio := float32(v) / float32(countTotal)
 		if correctRatio-ratio > 0.05 {
 			t.Errorf("Problem with stats: ratio %f, correctRatio : %f", ratio, correctRatio)
@@ -71,7 +78,7 @@ func TestVariationAllocation(t *testing.T) {
 	variationsGroupInfo := VariationsGroup{
 		Variations: variationArray,
 	}
-	testVariationGroupAlloc(variationsGroupInfo, t)
+	testVariationGroupAlloc(variationsGroupInfo, t, false)
 
 	variationArray = []*Variation{}
 	variationArray = append(variationArray, &Variation{ID: "1", Allocation: 33})
@@ -81,18 +88,18 @@ func TestVariationAllocation(t *testing.T) {
 	variationsGroupInfo = VariationsGroup{
 		Variations: variationArray,
 	}
-	testVariationGroupAlloc(variationsGroupInfo, t)
+	testVariationGroupAlloc(variationsGroupInfo, t, false)
 
 	variationArray = []*Variation{}
 	variationArray = append(variationArray, &Variation{ID: "1", Allocation: 10})
 	variationArray = append(variationArray, &Variation{ID: "2", Allocation: 25})
-	variationArray = append(variationArray, &Variation{ID: "3", Allocation: 35})
+	variationArray = append(variationArray, &Variation{ID: "3", Allocation: 25})
 	variationArray = append(variationArray, &Variation{ID: "4", Allocation: 40})
 
 	variationsGroupInfo = VariationsGroup{
 		Variations: variationArray,
 	}
-	testVariationGroupAlloc(variationsGroupInfo, t)
+	testVariationGroupAlloc(variationsGroupInfo, t, false)
 
 	variationArray = []*Variation{}
 	variationArray = append(variationArray, &Variation{ID: "1", Allocation: 90})
@@ -103,7 +110,18 @@ func TestVariationAllocation(t *testing.T) {
 	variationsGroupInfo = VariationsGroup{
 		Variations: variationArray,
 	}
-	testVariationGroupAlloc(variationsGroupInfo, t)
+	testVariationGroupAlloc(variationsGroupInfo, t, false)
+
+	variationArray = []*Variation{}
+	variationArray = append(variationArray, &Variation{ID: "1", Allocation: 90})
+	variationArray = append(variationArray, &Variation{ID: "2", Allocation: 100})
+	variationArray = append(variationArray, &Variation{ID: "3", Allocation: 100})
+	variationArray = append(variationArray, &Variation{ID: "4", Allocation: 100})
+
+	variationsGroupInfo = VariationsGroup{
+		Variations: variationArray,
+	}
+	testVariationGroupAlloc(variationsGroupInfo, t, true)
 
 	variationArray = []*Variation{}
 	variationArray = append(variationArray, &Variation{ID: "1", Allocation: 90})
@@ -114,5 +132,5 @@ func TestVariationAllocation(t *testing.T) {
 	variationsGroupInfo = VariationsGroup{
 		Variations: variationArray,
 	}
-	testVariationGroupAlloc(variationsGroupInfo, t)
+	testVariationGroupAlloc(variationsGroupInfo, t, false)
 }
