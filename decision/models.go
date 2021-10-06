@@ -6,8 +6,8 @@ import (
 
 // VariationInfo stores the variation information for decision making
 type Variation struct {
-	ID      string
-	Traffic float32
+	ID         string
+	Allocation float32
 }
 
 // VariationsGroupInfo stores the variation group information for decision making

@@ -20,8 +20,10 @@ func GetRandomAllocation(visitorID string, variationGroup *VariationsGroup) (*Va
 	hashed := hash.Sum32()
 	z := hashed % 100
 
+	sumAlloc := 0
 	for _, v := range variationGroup.Variations {
-		if float32(z) < v.Traffic {
+		sumAlloc += int(v.Allocation)
+		if int(z) < sumAlloc {
 			return v, nil
 		}
 	}
