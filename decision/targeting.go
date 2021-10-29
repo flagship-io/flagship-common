@@ -89,12 +89,10 @@ func targetingMatchOperator(operator targeting.Targeting_TargetingOperator, targ
 		targetingValueCasted := targetingValue.GetStringValue()
 		contextValueCasted := contextValue.GetStringValue()
 		match, err = targetingMatchOperatorString(operator, targetingValueCasted, contextValueCasted)
-		break
 	case (*protoStruct.Value_BoolValue):
 		targetingValueCasted := targetingValue.GetBoolValue()
 		contextValueCasted := contextValue.GetBoolValue()
 		match, err = targetingMatchOperatorBool(operator, targetingValueCasted, contextValueCasted)
-		break
 	case (*protoStruct.Value_NumberValue):
 		targetingValueCasted := targetingValue.GetNumberValue()
 		contextValueCasted := contextValue.GetNumberValue()
@@ -126,9 +124,9 @@ func targetingMatchOperatorString(operator targeting.Targeting_TargetingOperator
 	case targeting.Targeting_GREATER_THAN_OR_EQUALS:
 		return strings.ToLower(contextValue) >= strings.ToLower(targetingValue), nil
 	case targeting.Targeting_EQUALS:
-		return strings.ToLower(contextValue) == strings.ToLower(targetingValue), nil
+		return strings.EqualFold(contextValue, targetingValue), nil
 	case targeting.Targeting_NOT_EQUALS:
-		return strings.ToLower(contextValue) != strings.ToLower(targetingValue), nil
+		return strings.EqualFold(contextValue, targetingValue), nil
 	case targeting.Targeting_STARTS_WITH:
 		return strings.HasPrefix(strings.ToLower(contextValue), strings.ToLower(targetingValue)), nil
 	case targeting.Targeting_ENDS_WITH:
