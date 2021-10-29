@@ -126,7 +126,7 @@ func targetingMatchOperatorString(operator targeting.Targeting_TargetingOperator
 	case targeting.Targeting_EQUALS:
 		return strings.EqualFold(contextValue, targetingValue), nil
 	case targeting.Targeting_NOT_EQUALS:
-		return strings.EqualFold(contextValue, targetingValue), nil
+		return !strings.EqualFold(contextValue, targetingValue), nil
 	case targeting.Targeting_STARTS_WITH:
 		return strings.HasPrefix(strings.ToLower(contextValue), strings.ToLower(targetingValue)), nil
 	case targeting.Targeting_ENDS_WITH:
