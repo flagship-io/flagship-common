@@ -288,31 +288,43 @@ func GetDecision(
 	_, _, _, _ = <-utils.RunTaskAsync(func() {
 		if enableCache && len(newVGAssignments) > 0 && handlers.SaveCache != nil {
 			// 4 Persist visitor ID new vg assignments to cache db
-			handlers.SaveCache(envID, visitorID, &VisitorAssignments{
+			err := handlers.SaveCache(envID, visitorID, &VisitorAssignments{
 				Timestamp:   now.Unix(),
 				Assignments: newVGAssignments,
 			})
+			if err != nil {
+				log.Printf("Error occured on cache saving: %v", err)
+			}
 		}
 	}), utils.RunTaskAsync(func() {
 		if enableCache && len(newVGAssignmentsAnonymous) > 0 && handlers.SaveCache != nil {
 			// 4 Persist anonymous ID new vg assignments to cache db
-			handlers.SaveCache(envID, anonymousID, &VisitorAssignments{
+			err := handlers.SaveCache(envID, anonymousID, &VisitorAssignments{
 				Timestamp:   now.Unix(),
 				Assignments: newVGAssignmentsAnonymous,
 			})
+			if err != nil {
+				log.Printf("Error occured on cache saving: %v", err)
+			}
 		}
 	}), utils.RunTaskAsync(func() {
 		if enableCache && decisionGroup != "" && handlers.SaveCache != nil {
-			// 4 Persist anonymous ID new vg assignments to cache db
-			handlers.SaveCache(envID, decisionGroup, &VisitorAssignments{
+			// 5 Persist decision group new vg assignments to cache db
+			err := handlers.SaveCache(envID, decisionGroup, &VisitorAssignments{
 				Timestamp:   now.Unix(),
 				Assignments: newVGAssignments,
 			})
+			if err != nil {
+				log.Printf("Error occured on cache saving: %v", err)
+			}
 		}
 	}), <-utils.RunTaskAsync(func() {
 		if len(cActivations) > 0 && handlers.ActivateCampaigns != nil {
 			tracker.TimeTrack("Start activating campaigns hit")
-			handlers.ActivateCampaigns(cActivations)
+			err := handlers.ActivateCampaigns(cActivations)
+			if err != nil {
+				log.Printf("Error occured on campaign activation: %v", err)
+			}
 			tracker.TimeTrack("End activating campaigns hit")
 		}
 	})
