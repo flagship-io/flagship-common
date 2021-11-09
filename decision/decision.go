@@ -223,7 +223,7 @@ func GetDecision(
 			isNew = true
 		} else {
 			// Else compute new allocation
-			chosenVariation, err := GetRandomAllocation(visitorID, vg, true)
+			chosenVariation, err := GetRandomAllocation(visitorID, vg, options.IsCumulativeAlloc)
 			if err != nil {
 				log.Println(fmt.Sprintf("Error on new allocation : %v", err))
 				if options.CampaignID != "" {
