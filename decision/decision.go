@@ -203,10 +203,10 @@ func GetDecision(
 		var existingVariation *Variation
 		var existingAnonymousVariation *Variation
 		for _, v := range vg.Variations {
-			if v.ID == existingAssignment.VariationID {
+			if ok && v.ID == existingAssignment.VariationID {
 				existingVariation = v
 			}
-			if v.ID == existingAssignmentAnonymous.VariationID {
+			if okAnonymous && v.ID == existingAssignmentAnonymous.VariationID {
 				existingAnonymousVariation = v
 			}
 		}
