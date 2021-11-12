@@ -53,7 +53,7 @@ func GetDecision(
 	var assignmentsDG *VisitorAssignments
 
 	var err error
-	enableReconciliation := !environmentInfos.UseReconciliation && anonymousID != ""
+	enableReconciliation := environmentInfos.UseReconciliation && anonymousID != ""
 	hasMultipleVariations := false
 	for _, vg := range variationGroups {
 		if len(vg.Variations) > 1 {
