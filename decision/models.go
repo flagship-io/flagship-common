@@ -81,6 +81,18 @@ type DecisionResponse struct {
 	Campaigns []*decision_response.Campaign
 }
 
+// CampaignInfo stores the campaign information for decision making
+type CampaignInfo struct {
+	ID               string
+	CustomID         *string
+	VariationsGroups map[string]*VariationsGroup
+	Type             string
+	CreatedAt        time.Time
+}
+
+type byCreatedAtCampaigns []*CampaignInfo
+type byCreatedAtVG []*VariationsGroup
+
 // GetAssignments returns all the assigments
 func (va *VisitorAssignments) GetAssignments() map[string]*VisitorVGCacheItem {
 	if va == nil {
@@ -100,17 +112,6 @@ func (va *VisitorAssignments) GetAssignment(vgID string) (*VisitorVGCacheItem, b
 	return existing, ok
 }
 
-// CampaignInfo stores the campaign information for decision making
-type CampaignInfo struct {
-	ID               string
-	CustomID         *string
-	VariationsGroups map[string]*VariationsGroup
-	Type             string
-	CreatedAt        time.Time
-}
-
-type byCreatedAtCampaigns []*CampaignInfo
-
 func (s byCreatedAtCampaigns) Len() int {
 	return len(s)
 }
@@ -120,8 +121,6 @@ func (s byCreatedAtCampaigns) Swap(i, j int) {
 func (s byCreatedAtCampaigns) Less(i, j int) bool {
 	return s[i].CreatedAt.After(s[j].CreatedAt)
 }
-
-type byCreatedAtVG []*VariationsGroup
 
 func (s byCreatedAtVG) Len() int {
 	return len(s)
