@@ -59,21 +59,22 @@ func targetingMatchOperator(operator targeting.Targeting_TargetingOperator, targ
 	var err error
 
 	listValues := contextValue.GetListValue()
-	if listValues != nil && len(listValues.GetValues()) > 0 && listValues.GetValues()[0].GetKind() != targetingValue.GetKind() {
+	if listValues != nil && len(listValues.GetValues()) > 0 && reflect.TypeOf(listValues.GetValues()[0].GetKind()) != reflect.TypeOf(targetingValue.GetKind()) {
 		return false, errors.New("Targeting and Context list value kinds mismatch")
 	}
 
 	if listValues != nil {
+		match = isANDListOperator(operator)
 		for _, v := range listValues.GetValues() {
 			subValueMatch, err := targetingMatchOperator(operator, targetingValue, v)
 			if err != nil {
 				return false, nil
 			}
-			if operator == targeting.Targeting_EQUALS {
-				match = match || (err == nil && subValueMatch)
+			if isANDListOperator(operator) {
+				match = match && err == nil && subValueMatch
 			}
-			if operator == targeting.Targeting_NOT_EQUALS {
-				match = match && (err == nil && subValueMatch)
+			if isORListOperator(operator) {
+				match = match || (err == nil && subValueMatch)
 			}
 		}
 		return match, nil
