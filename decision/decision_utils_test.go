@@ -12,6 +12,30 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
+func createNumberTargeting() *targeting.Targeting {
+	targetingGroups := []*targeting.Targeting_TargetingGroup{}
+	targetingGroups = append(targetingGroups, &targeting.Targeting_TargetingGroup{
+		Targetings: []*targeting.Targeting_InnerTargeting{{
+			Operator: targeting.Targeting_EQUALS,
+			Key:      &wrappers.StringValue{Value: "age"},
+			Value:    structpb.NewNumberValue(30),
+		}},
+	})
+	return &targeting.Targeting{TargetingGroups: targetingGroups}
+}
+
+func createBoolTargeting() *targeting.Targeting {
+	targetingGroups := []*targeting.Targeting_TargetingGroup{}
+	targetingGroups = append(targetingGroups, &targeting.Targeting_TargetingGroup{
+		Targetings: []*targeting.Targeting_InnerTargeting{{
+			Operator: targeting.Targeting_EQUALS,
+			Key:      &wrappers.StringValue{Value: "isVIP"},
+			Value:    structpb.NewBoolValue(true),
+		}},
+	})
+	return &targeting.Targeting{TargetingGroups: targetingGroups}
+}
+
 func TestGetCampaignsArray(t *testing.T) {
 	campaignsMap := map[string]*CampaignInfo{}
 	campaignsMap["testNEW"] = &CampaignInfo{
@@ -104,44 +128,64 @@ func TestGetPreviousABVGIds(t *testing.T) {
 func TestGetVariationGroup(t *testing.T) {
 	vgs := map[string]*VariationsGroup{}
 
-	targetingGroups := []*targeting.Targeting_TargetingGroup{}
-	targetingGroups = append(targetingGroups, &targeting.Targeting_TargetingGroup{
-		Targetings: []*targeting.Targeting_InnerTargeting{&targeting.Targeting_InnerTargeting{
-			Operator: targeting.Targeting_EQUALS,
-			Key:      &wrappers.StringValue{Value: "age"},
-			Value: &protoStruct.Value{
-				Kind: &protoStruct.Value_NumberValue{
-					NumberValue: 30,
-				},
-			},
-		}},
-	})
-	targeting := &targeting.Targeting{TargetingGroups: targetingGroups}
-
 	vgs["testVGIDNEW"] = &VariationsGroup{
 		CampaignID: "testCampaignIdNEW",
 		ID:         "testId",
-		Targetings: targeting,
+		Targetings: createNumberTargeting(),
 		CreatedAt:  time.Now(),
 	}
 
 	vgs["testVGIDOLD"] = &VariationsGroup{
 		CampaignID: "testCampaignIdOLD",
 		ID:         "testId",
-		Targetings: targeting,
+		Targetings: createNumberTargeting(),
 		CreatedAt:  time.Now().Add(-30 * time.Minute),
 	}
 
 	context := map[string]*protoStruct.Value{
-		"age": &protoStruct.Value{
-			Kind: &protoStruct.Value_NumberValue{
-				NumberValue: 30,
-			},
-		},
+		"age": structpb.NewNumberValue(30),
 	}
 
 	vg := GetVariationGroup(vgs, "testVID", context)
 	assert.Equal(t, vgs["testVGIDOLD"], vg)
+}
+
+func TestGetCampaignsVG(t *testing.T) {
+	vgs := map[string]*VariationsGroup{}
+	vgs["testVGID"] = &VariationsGroup{
+		CampaignID: "testCampaignId",
+		ID:         "testId",
+		Targetings: createNumberTargeting(),
+		CreatedAt:  time.Now(),
+	}
+	vgsNotTargeted := map[string]*VariationsGroup{}
+	vgsNotTargeted["testVGIDNotTargeted"] = &VariationsGroup{
+		CampaignID: "testCampaignIdNotTargeted",
+		ID:         "testIdNotTargeted",
+		Targetings: createBoolTargeting(),
+		CreatedAt:  time.Now(),
+	}
+
+	context := map[string]*protoStruct.Value{
+		"age": structpb.NewNumberValue(30),
+	}
+	campaignInfos := []*CampaignInfo{
+		{
+			ID:               "testCampaignId",
+			VariationsGroups: vgs,
+		},
+		{
+			ID:               "testCampaignId",
+			VariationsGroups: vgs,
+		},
+		{
+			ID:               "testCampaignIdNotTargeted",
+			VariationsGroups: vgsNotTargeted,
+		},
+	}
+	vgsResp := GetCampaignsVG(campaignInfos, "testVID", context)
+	assert.Equal(t, vgs["testVGID"], vgsResp[0])
+	assert.Equal(t, 1, len(vgsResp))
 }
 
 func TestBuildCampaignResponse(t *testing.T) {
