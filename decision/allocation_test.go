@@ -160,3 +160,44 @@ func TestVariationAllocation(t *testing.T) {
 	assert.EqualValues(t, errors.New("Visitor untracked"), allocErrors[0])
 	assert.True(t, isRatioCorrect)
 }
+func TestIsVisitorInBucket(t *testing.T) {
+	// visitor in bucket 100% should be allowed
+	is, err := IsVisitorInBucket("123", &CampaignInfo{
+		ID:           "123",
+		BucketRanges: [][]float64{{0., 100.}},
+	})
+	assert.Nil(t, err)
+	assert.True(t, is)
+
+	// visitor in bucket in its appropriate bucket should be allowed
+	is, err = IsVisitorInBucket("123", &CampaignInfo{
+		ID:           "123",
+		BucketRanges: [][]float64{{71., 71.5}},
+	})
+	assert.Nil(t, err)
+	assert.True(t, is)
+
+	// visitor in bucket in one of its appropriate bucket should be allowed
+	is, err = IsVisitorInBucket("123", &CampaignInfo{
+		ID:           "123",
+		BucketRanges: [][]float64{{71., 71.5}, {40., 50.}},
+	})
+	assert.Nil(t, err)
+	assert.True(t, is)
+
+	// same condition but on an other campaign, the visitor have the same hash and should be
+	is, err = IsVisitorInBucket("123", &CampaignInfo{
+		ID:           "456",
+		BucketRanges: [][]float64{{71., 71.5}},
+	})
+	assert.Nil(t, err)
+	assert.True(t, is)
+
+	// no buckets, visitor not allocated
+	is, err = IsVisitorInBucket("123", &CampaignInfo{
+		ID:           "999",
+		BucketRanges: [][]float64{},
+	})
+	assert.Nil(t, err)
+	assert.False(t, is)
+}

@@ -8,17 +8,24 @@ import (
 
 var hash = murmur3.New32()
 
-// GetRandomAllocation returns a random allocation for a variationGroup
-func GetRandomAllocation(visitorID string, variationGroup *VariationsGroup, isCumulativeAlloc bool) (*Variation, error) {
+func genHashFloat(visitorID string, vgID string) (float32, error) {
 	hash.Reset()
-	_, err := hash.Write([]byte(variationGroup.ID + visitorID))
+	_, err := hash.Write([]byte(vgID + visitorID))
 
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	hashed := hash.Sum32()
-	z := float32(hashed % 100)
+	return float32(hashed % 100), nil
+}
+
+// GetRandomAllocation returns a random allocation for a variationGroup
+func GetRandomAllocation(visitorID string, variationGroup *VariationsGroup, isCumulativeAlloc bool) (*Variation, error) {
+	z, err := genHashFloat(visitorID, variationGroup.ID)
+	if err != nil {
+		return nil, err
+	}
 
 	sumAlloc := float32(0)
 	for _, v := range variationGroup.Variations {
@@ -33,4 +40,18 @@ func GetRandomAllocation(visitorID string, variationGroup *VariationsGroup, isCu
 
 	// If no variation alloc, returns empty
 	return nil, errors.New("Visitor untracked")
+}
+
+func IsVisitorInBucket(visitorID string, campaign *CampaignInfo) (bool, error) {
+	z, err := genHashFloat(visitorID, "")
+	if err != nil {
+		return false, err
+	}
+
+	for _, br := range campaign.BucketRanges {
+		if z >= float32(br[0]) && z < float32(br[1]) {
+			return true, nil
+		}
+	}
+	return false, nil
 }

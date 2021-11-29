@@ -5,10 +5,8 @@ import (
 	"testing"
 
 	"github.com/flagship-io/flagship-proto/decision_response"
-	"github.com/flagship-io/flagship-proto/targeting"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/structpb"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func mockGetCache(environmentID string, id string) (*VisitorAssignments, error) {
@@ -26,27 +24,11 @@ func mockActivateCampaigns(activations []*VisitorActivation) error {
 	return nil
 }
 
-func targetingContext() *targeting.Targeting {
-	return &targeting.Targeting{
-		TargetingGroups: []*targeting.Targeting_TargetingGroup{
-			{
-				Targetings: []*targeting.Targeting_InnerTargeting{
-					{
-						Operator: targeting.Targeting_EQUALS,
-						Key:      wrapperspb.String("test"),
-						Value:    structpb.NewStringValue("decision"),
-					},
-				},
-			},
-		},
-	}
-}
-
 func TestDecisionBucketInNoCache(t *testing.T) {
 	vi := VisitorInfo{}
 	vi.ID = "v1"
 	vi.Context = map[string]*structpb.Value{
-		"test": structpb.NewStringValue("decision"),
+		"isVIP": structpb.NewBoolValue(true),
 	}
 	vi.DecisionGroup = "decision"
 
@@ -54,13 +36,13 @@ func TestDecisionBucketInNoCache(t *testing.T) {
 	ei.ID = "e123"
 	ei.Campaigns = map[string]*CampaignInfo{
 		"a": {
-			ID:           "c1",
+			ID:           "a1",
 			BucketRanges: [][]float64{{0., 100.}},
 			VariationsGroups: map[string]*VariationsGroup{
 				"vga": {
 					ID:         "vga",
 					CampaignID: "a",
-					Targetings: targetingContext(),
+					Targetings: createBoolTargeting(),
 					Variations: []*Variation{
 						{
 							ID:         "vgav1",
@@ -75,13 +57,13 @@ func TestDecisionBucketInNoCache(t *testing.T) {
 			},
 		},
 		"b": {
-			ID:           "c1",
-			BucketRanges: [][]float64{{40., 60.}},
+			ID:           "a2",
+			BucketRanges: [][]float64{{20., 30.}},
 			VariationsGroups: map[string]*VariationsGroup{
 				"vgb": {
 					ID:         "vgb",
 					CampaignID: "b",
-					Targetings: targetingContext(),
+					Targetings: createBoolTargeting(),
 					Variations: []*Variation{
 						{
 							ID:         "vgbv1",
@@ -107,9 +89,7 @@ func TestDecisionBucketInNoCache(t *testing.T) {
 
 	decision, err := GetDecision(vi, ei, options, handlers)
 
-	fmt.Println(decision)
-	fmt.Println(err)
-
+	// only one campaign should be returned, they have the same targeting and allocation but the second one has not the right bucket allocation
 	assert.Nil(t, err)
-	assert.NotEmpty(t, decision.Campaigns)
+	assert.Len(t, decision.Campaigns, 1)
 }
