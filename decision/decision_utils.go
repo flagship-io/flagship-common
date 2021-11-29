@@ -5,7 +5,6 @@ import (
 	"log"
 	"sort"
 
-	"github.com/flagship-io/flagship-common/utils"
 	"github.com/flagship-io/flagship-proto/decision_response"
 	protoStruct "github.com/golang/protobuf/ptypes/struct"
 	"github.com/golang/protobuf/ptypes/wrappers"
@@ -75,15 +74,16 @@ func GetCampaignsVG(campaigns []*CampaignInfo, visitorID string, context map[str
 // getPreviousABVGIds returns previously assigned AB test campaigns for visitor
 func getPreviousABVGIds(variationGroups []*VariationsGroup, existingVar map[string]*VisitorVGCacheItem) []string {
 	previousVisVGsAB := []string{}
+	alreadyAdded := map[string]bool{}
 	for _, vg := range variationGroups {
 		if vg.CampaignType != "ab" {
 			continue
 		}
 		existingVariations, ok := existingVar[vg.ID]
-		isActivated := ok && existingVariations.Activated
-		if isActivated && !utils.IsInStringArray(vg.ID, previousVisVGsAB) {
+		_, added := alreadyAdded[vg.ID]
+		if ok && existingVariations.Activated && !added {
 			previousVisVGsAB = append(previousVisVGsAB, vg.ID)
-			break
+			alreadyAdded[vg.ID] = true
 		}
 	}
 	return previousVisVGsAB

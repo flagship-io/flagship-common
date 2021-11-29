@@ -63,6 +63,34 @@ func testTargetingListString(operator targeting.Targeting_TargetingOperator, tar
 	}
 }
 
+func testTargetingContextListString(operator targeting.Targeting_TargetingOperator, targetingValue string, contextValue []string, t *testing.T, shouldMatch bool, shouldRaiseError bool) {
+	stringValues := []*protoStruct.Value{}
+	for _, str := range contextValue {
+		stringValue := &protoStruct.Value{
+			Kind: &protoStruct.Value_StringValue{
+				StringValue: str,
+			},
+		}
+		stringValues = append(stringValues, stringValue)
+	}
+
+	match, err := targetingMatchOperator(operator, &protoStruct.Value{
+		Kind: &protoStruct.Value_StringValue{
+			StringValue: targetingValue,
+		},
+	}, &protoStruct.Value{
+		Kind: &protoStruct.Value_ListValue{
+			ListValue: &protoStruct.ListValue{
+				Values: stringValues,
+			},
+		},
+	})
+
+	if ((err != nil && !shouldRaiseError) || (shouldRaiseError && err == nil)) || (match != shouldMatch) {
+		t.Errorf("Targeting list %v not working - tv : %v, v: %v, match : %v, err: %v", operator, targetingValue, contextValue, match, err)
+	}
+}
+
 // TestNumberTargeting checks all possible number targeting
 func TestNumberTargeting(t *testing.T) {
 	testTargetingNumber(targeting.Targeting_LOWER_THAN, 11, 10, t, true, false)
@@ -177,6 +205,24 @@ func TestListStringTargeting(t *testing.T) {
 	testTargetingListString(targeting.Targeting_NOT_CONTAINS, []string{"abc", "bcd"}, "abcd", t, false, false)
 }
 
+// TestListStringTargeting checks all possible string list targeting
+func TestContextListStringTargeting(t *testing.T) {
+	testTargetingContextListString(targeting.Targeting_EQUALS, "abc", []string{"abd"}, t, false, false)
+	testTargetingContextListString(targeting.Targeting_EQUALS, "abc", []string{"abc"}, t, true, false)
+	testTargetingContextListString(targeting.Targeting_NOT_EQUALS, "abc", []string{"abd"}, t, true, false)
+	testTargetingContextListString(targeting.Targeting_NOT_EQUALS, "abc", []string{"abc"}, t, false, false)
+
+	testTargetingContextListString(targeting.Targeting_EQUALS, "abd", []string{"abc", "bcd"}, t, false, false)
+	testTargetingContextListString(targeting.Targeting_EQUALS, "abc", []string{"abc", "bcd"}, t, true, false)
+	testTargetingContextListString(targeting.Targeting_NOT_EQUALS, "abd", []string{"abc", "bcd"}, t, true, false)
+	testTargetingContextListString(targeting.Targeting_NOT_EQUALS, "abc", []string{"abc", "bcd"}, t, false, false)
+
+	testTargetingContextListString(targeting.Targeting_CONTAINS, "abc", []string{"abcd", "bcd"}, t, true, false)
+	testTargetingContextListString(targeting.Targeting_CONTAINS, "xyz", []string{"abc", "bcd"}, t, false, false)
+	testTargetingContextListString(targeting.Targeting_NOT_CONTAINS, "xyz", []string{"abc", "bcd"}, t, true, false)
+	testTargetingContextListString(targeting.Targeting_NOT_CONTAINS, "abc", []string{"abcd", "bcd"}, t, false, false)
+}
+
 func TestComplexTargeting(t *testing.T) {
 	vgTest := &VariationsGroup{
 		ID: "test-vg",
@@ -252,4 +298,13 @@ func TestComplexTargeting(t *testing.T) {
 	test, err = TargetingMatch(vgTest, "test@abtasty.com", context)
 	assert.Nil(t, err)
 	assert.False(t, test)
+
+	context["isVIP"] = &structpb.Value{
+		Kind: &structpb.Value_BoolValue{
+			BoolValue: true,
+		},
+	}
+	test, err = TargetingMatch(vgTest, "test@abtasty.com", context)
+	assert.Nil(t, err)
+	assert.True(t, test)
 }

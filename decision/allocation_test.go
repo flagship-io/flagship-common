@@ -1,10 +1,13 @@
 package decision
 
 import (
+	"errors"
 	"log"
 	"math/rand"
 	"strconv"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func testVariationGroupAlloc(vg VariationsGroup, t *testing.T, isCumulativeAlloc bool) {
@@ -133,4 +136,27 @@ func TestVariationAllocation(t *testing.T) {
 		Variations: variationArray,
 	}
 	testVariationGroupAlloc(variationsGroupInfo, t, false)
+
+	variationArray = []*Variation{}
+	variationArray = append(variationArray, &Variation{ID: "1", Allocation: 50})
+	variationArray = append(variationArray, &Variation{ID: "2", Allocation: 0})
+
+	variationsGroupInfo = VariationsGroup{
+		Variations: variationArray,
+	}
+	allocErrors := []error{}
+	nbTrials := 100000
+	for i := 1; i < nbTrials; i++ {
+		_, err := GetRandomAllocation(strconv.Itoa(rand.Int()), &variationsGroupInfo, false)
+
+		if err != nil {
+			allocErrors = append(allocErrors, err)
+			continue
+		}
+	}
+	errRatio := float64(len(allocErrors)) / float64(nbTrials)
+	log.Printf("errRatio: %f", errRatio)
+	isRatioCorrect := 0.5-errRatio < 0.05
+	assert.EqualValues(t, errors.New("Visitor untracked"), allocErrors[0])
+	assert.True(t, isRatioCorrect)
 }
