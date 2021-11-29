@@ -88,6 +88,7 @@ type CampaignInfo struct {
 	VariationsGroups map[string]*VariationsGroup
 	Type             string
 	CreatedAt        time.Time
+	BucketRanges     [][]float64
 }
 
 type byCreatedAtCampaigns []*CampaignInfo

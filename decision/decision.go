@@ -149,14 +149,20 @@ func GetDecision(
 		}
 		var chosenVariation *Variation
 
+		// manage the bucket allocation of the visitor
+		// if the visitor already have been allocated to a variation, we want to bypass the bucket allocation
+		enableBucketAllocation := true
+
 		// If already has variation && assigned variation ID  exist, visitor should not be re-assigned
 		if ok && existingVariation != nil {
 			vid = existingAssignment.VariationID
 			chosenVariation = existingVariation
+			enableBucketAllocation = false
 		} else if enableReconciliation && okAnonymous && existingAnonymousVariation != nil {
 			// If reconciliation is on, find anonymous variation as set vid to that variation ID
 			vid = existingAssignmentAnonymous.VariationID
 			chosenVariation = existingAnonymousVariation
+			enableBucketAllocation = false
 			isNew = true
 		} else {
 			// Else compute new allocation
@@ -171,6 +177,17 @@ func GetDecision(
 			vid = chosenVariation.ID
 			isNew = true
 			isNewAnonymous = true
+		}
+
+		if enableBucketAllocation {
+			isInBucket, err := IsVisitorInBucket(visitorID, environmentInfos.Campaigns[vg.CampaignID])
+			if err != nil {
+				log.Println(fmt.Sprintf("Error on bucket allocation : %v", err))
+			}
+
+			if !isInBucket {
+				continue
+			}
 		}
 
 		// 3.1 If allocation is newly computed and not only 1 variation,
