@@ -8,6 +8,7 @@ import (
 
 	"github.com/flagship-io/flagship-common/utils"
 	"github.com/flagship-io/flagship-proto/decision_response"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // GetDecision return a decision response from visitor & environment infos
@@ -16,7 +17,7 @@ func GetDecision(
 	environmentInfos EnvironmentInfo,
 	options DecisionOptions,
 	handlers DecisionHandlers,
-) (*DecisionResponse, error) {
+) (*decision_response.DecisionResponse, error) {
 
 	envID := environmentInfos.ID
 	visitorID := visitorInfos.ID
@@ -31,7 +32,8 @@ func GetDecision(
 		decisionGroup = envID + ":" + base64.StdEncoding.EncodeToString([]byte(decisionGroup))
 	}
 
-	decisionResponse := DecisionResponse{}
+	decisionResponse := &decision_response.DecisionResponse{}
+	decisionResponse.VisitorId = wrapperspb.String(visitorID)
 	decisionResponse.Campaigns = []*decision_response.Campaign{}
 
 	newVGAssignments := make(map[string]*VisitorVGCacheItem)
@@ -100,7 +102,7 @@ func GetDecision(
 
 	if err != nil {
 		log.Println("CacheDB error occured : " + err.Error())
-		return &decisionResponse, nil
+		return decisionResponse, nil
 	}
 
 	// Handle single assignment clients
@@ -170,7 +172,7 @@ func GetDecision(
 			if err != nil {
 				log.Println(fmt.Sprintf("Error on new allocation : %v", err))
 				if options.CampaignID != "" {
-					return &decisionResponse, err
+					return decisionResponse, err
 				}
 				continue
 			}
@@ -283,5 +285,5 @@ func GetDecision(
 		}
 	})
 
-	return &decisionResponse, nil
+	return decisionResponse, nil
 }
