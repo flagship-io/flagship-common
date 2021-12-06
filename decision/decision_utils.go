@@ -9,6 +9,7 @@ import (
 	protoStruct "github.com/golang/protobuf/ptypes/struct"
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // GetCampaignsArray returns the first campaign that matches the campaign ID
@@ -130,5 +131,6 @@ func buildCampaignResponse(vg *VariationsGroup, variation *Variation, shouldFill
 	}
 
 	campaignResponse.Variation = protoModif
+	campaignResponse.Type = wrapperspb.String(vg.CampaignType)
 	return &campaignResponse
 }

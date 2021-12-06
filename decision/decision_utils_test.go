@@ -219,20 +219,23 @@ func TestBuildCampaignResponse(t *testing.T) {
 	}
 
 	vg := &VariationsGroup{
-		CampaignID: "cid",
-		ID:         "vgid",
-		Variations: []*Variation{var1, var2},
+		CampaignID:   "cid",
+		CampaignType: "ab",
+		ID:           "vgid",
+		Variations:   []*Variation{var1, var2},
 	}
 
 	resp := buildCampaignResponse(vg, var1, false)
 	assert.NotNil(t, resp)
 	assert.Equal(t, "cid", resp.Id.Value)
+	assert.Equal(t, "ab", resp.Type.Value)
 	assert.Equal(t, "vgid", resp.VariationGroupId.Value)
 	assert.Equal(t, value1, resp.Variation.Modifications.Value)
 
 	resp = buildCampaignResponse(vg, var1, true)
 	assert.NotNil(t, resp)
 	assert.Equal(t, "cid", resp.Id.Value)
+	assert.Equal(t, "ab", resp.Type.Value)
 	assert.Equal(t, "vgid", resp.VariationGroupId.Value)
 	assert.Equal(t, 4, len(resp.Variation.Modifications.Value.Fields))
 	assert.EqualValues(t, map[string]interface{}{
@@ -245,6 +248,7 @@ func TestBuildCampaignResponse(t *testing.T) {
 	resp = buildCampaignResponse(vg, var3, true)
 	assert.NotNil(t, resp)
 	assert.Equal(t, "cid", resp.Id.Value)
+	assert.Equal(t, "ab", resp.Type.Value)
 	assert.Equal(t, "vgid", resp.VariationGroupId.Value)
 	assert.Equal(t, 4, len(resp.Variation.Modifications.Value.Fields))
 	assert.EqualValues(t, map[string]interface{}{

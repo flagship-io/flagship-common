@@ -77,10 +77,6 @@ type DecisionHandlers struct {
 	ActivateCampaigns func(activations []*VisitorActivation) error
 }
 
-type DecisionResponse struct {
-	Campaigns []*decision_response.Campaign
-}
-
 // CampaignInfo stores the campaign information for decision making
 type CampaignInfo struct {
 	ID               string
