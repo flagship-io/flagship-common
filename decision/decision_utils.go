@@ -65,7 +65,7 @@ func GetCampaignsVG(campaigns []*CampaignInfo, visitorID string, context map[str
 		if vg == nil {
 			continue
 		}
-		vg.Campaign.Type = campaign.Type
+		vg.Campaign = campaign
 		existingCampaignVG[campaign.ID] = true
 		campaignVG = append(campaignVG, vg)
 	}
