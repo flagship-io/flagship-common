@@ -43,6 +43,10 @@ func GetRandomAllocation(visitorID string, variationGroup *VariationsGroup, isCu
 }
 
 func IsVisitorInBucket(visitorID string, campaign *CampaignInfo) (bool, error) {
+	if campaign == nil {
+		panic("campaign nil")
+	}
+
 	z, err := genHashFloat(visitorID, "")
 	if err != nil {
 		return false, err

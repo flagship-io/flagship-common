@@ -184,7 +184,7 @@ func GetDecision(
 		if enableBucketAllocation {
 			isInBucket, err := IsVisitorInBucket(visitorID, environmentInfos.Campaigns[vg.CampaignID])
 			if err != nil {
-				log.Println(fmt.Sprintf("Error on bucket allocation : %v", err))
+				log.Println(fmt.Sprintf("Error on bucket allocation for campaign %v : %v", vg.CampaignID, err))
 			}
 
 			if !isInBucket {
