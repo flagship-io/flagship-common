@@ -76,30 +76,40 @@ func TestGetCampaignsArray(t *testing.T) {
 
 func TestGetPreviousABVGIds(t *testing.T) {
 	vgs := []*VariationsGroup{{
-		CampaignID:   "testCampaignId1",
-		CampaignType: "ab",
-		ID:           "testId1",
-		CreatedAt:    time.Now(),
+		Campaign: &CampaignInfo{
+			ID:   "testCampaignId1",
+			Type: "ab",
+		},
+		ID:        "testId1",
+		CreatedAt: time.Now(),
 	}, {
-		CampaignID:   "testCampaignId2",
-		CampaignType: "flag",
-		ID:           "testId2",
-		CreatedAt:    time.Now(),
+		Campaign: &CampaignInfo{
+			ID:   "testCampaignId2",
+			Type: "flag",
+		},
+		ID:        "testId2",
+		CreatedAt: time.Now(),
 	}, {
-		CampaignID:   "testCampaignId3",
-		CampaignType: "ab",
-		ID:           "testId1",
-		CreatedAt:    time.Now(),
+		Campaign: &CampaignInfo{
+			ID:   "testCampaignId3",
+			Type: "ab",
+		},
+		ID:        "testId1",
+		CreatedAt: time.Now(),
 	}, {
-		CampaignID:   "testCampaignId4",
-		CampaignType: "ab",
-		ID:           "testId3",
-		CreatedAt:    time.Now(),
+		Campaign: &CampaignInfo{
+			ID:   "testCampaignId4",
+			Type: "ab",
+		},
+		ID:        "testId3",
+		CreatedAt: time.Now(),
 	}, {
-		CampaignID:   "testCampaignId5",
-		CampaignType: "ab",
-		ID:           "testId4",
-		CreatedAt:    time.Now(),
+		Campaign: &CampaignInfo{
+			ID:   "testCampaignId5",
+			Type: "ab",
+		},
+		ID:        "testId4",
+		CreatedAt: time.Now(),
 	}}
 
 	existingAssignments := map[string]*VisitorVGCacheItem{
@@ -129,14 +139,18 @@ func TestGetVariationGroup(t *testing.T) {
 	vgs := map[string]*VariationsGroup{}
 
 	vgs["testVGIDNEW"] = &VariationsGroup{
-		CampaignID: "testCampaignIdNEW",
+		Campaign: &CampaignInfo{
+			ID: "testCampaignIdNEW",
+		},
 		ID:         "testId",
 		Targetings: createNumberTargeting(),
 		CreatedAt:  time.Now(),
 	}
 
 	vgs["testVGIDOLD"] = &VariationsGroup{
-		CampaignID: "testCampaignIdOLD",
+		Campaign: &CampaignInfo{
+			ID: "testCampaignIdOLD",
+		},
 		ID:         "testId",
 		Targetings: createNumberTargeting(),
 		CreatedAt:  time.Now().Add(-30 * time.Minute),
@@ -153,14 +167,18 @@ func TestGetVariationGroup(t *testing.T) {
 func TestGetCampaignsVG(t *testing.T) {
 	vgs := map[string]*VariationsGroup{}
 	vgs["testVGID"] = &VariationsGroup{
-		CampaignID: "testCampaignId",
+		Campaign: &CampaignInfo{
+			ID: "testCampaignId",
+		},
 		ID:         "testId",
 		Targetings: createNumberTargeting(),
 		CreatedAt:  time.Now(),
 	}
 	vgsNotTargeted := map[string]*VariationsGroup{}
 	vgsNotTargeted["testVGIDNotTargeted"] = &VariationsGroup{
-		CampaignID: "testCampaignIdNotTargeted",
+		Campaign: &CampaignInfo{
+			ID: "testCampaignIdNotTargeted",
+		},
 		ID:         "testIdNotTargeted",
 		Targetings: createBoolTargeting(),
 		CreatedAt:  time.Now(),
@@ -219,10 +237,12 @@ func TestBuildCampaignResponse(t *testing.T) {
 	}
 
 	vg := &VariationsGroup{
-		CampaignID:   "cid",
-		CampaignType: "ab",
-		ID:           "vgid",
-		Variations:   []*Variation{var1, var2},
+		Campaign: &CampaignInfo{
+			ID:   "cid",
+			Type: "ab",
+		},
+		ID:         "vgid",
+		Variations: []*Variation{var1, var2},
 	}
 
 	resp := buildCampaignResponse(vg, var1, false)
