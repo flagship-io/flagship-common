@@ -2,6 +2,7 @@ package decision
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -120,8 +121,12 @@ func GetDecision(
 	// 3. Compute or get from cache each variation group  variation affectation
 	for _, vg := range variationGroups {
 
+		if vg.Campaign == nil {
+			return nil, errors.New("variation group should have a campaign")
+		}
+
 		// Handle single assignment clients
-		if environmentInfos.SingleAssignment && vg.CampaignType == "ab" {
+		if environmentInfos.SingleAssignment && vg.Campaign.Type == "ab" {
 			if len(previousVisVGsAB) > 0 && !utils.IsInStringArray(vg.ID, previousVisVGsAB) {
 				// Visitor has already been assigned to a variation
 				continue
@@ -182,7 +187,7 @@ func GetDecision(
 		}
 
 		if enableBucketAllocation {
-			isInBucket, err := IsVisitorInBucket(visitorID, environmentInfos.Campaigns[vg.CampaignID])
+			isInBucket, err := IsVisitorInBucket(visitorID, vg.Campaign)
 			if err != nil {
 				log.Println(fmt.Sprintf("Error on bucket allocation for campaign %v : %v", vg.CampaignID, err))
 			}
@@ -235,7 +240,7 @@ func GetDecision(
 		decisionResponse.Campaigns = append(decisionResponse.Campaigns, campaignResponse)
 
 		// 3.5 Remember if AB campaign
-		if vg.CampaignType == "ab" {
+		if vg.Campaign.Type == "ab" {
 			hasABCampaign = true
 		}
 	}

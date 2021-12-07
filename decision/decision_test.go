@@ -41,7 +41,6 @@ func TestDecisionBucketInNoCache(t *testing.T) {
 			VariationsGroups: map[string]*VariationsGroup{
 				"vga": {
 					ID:         "vga",
-					CampaignID: "a",
 					Targetings: createBoolTargeting(),
 					Variations: []*Variation{
 						{
@@ -62,7 +61,6 @@ func TestDecisionBucketInNoCache(t *testing.T) {
 			VariationsGroups: map[string]*VariationsGroup{
 				"vgb": {
 					ID:         "vgb",
-					CampaignID: "b",
 					Targetings: createBoolTargeting(),
 					Variations: []*Variation{
 						{
@@ -77,6 +75,12 @@ func TestDecisionBucketInNoCache(t *testing.T) {
 				},
 			},
 		},
+	}
+	for _, vg := range ei.Campaigns["a"].VariationsGroups {
+		vg.Campaign = ei.Campaigns["a"]
+	}
+	for _, vg := range ei.Campaigns["b"].VariationsGroups {
+		vg.Campaign = ei.Campaigns["b"]
 	}
 
 	options := DecisionOptions{}

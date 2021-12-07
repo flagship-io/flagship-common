@@ -19,12 +19,11 @@ type Variation struct {
 
 // VariationsGroupInfo stores the variation group information for decision making
 type VariationsGroup struct {
-	ID           string
-	CampaignID   string
-	CampaignType string
-	CreatedAt    time.Time
-	Targetings   *targeting.Targeting
-	Variations   []*Variation
+	ID         string
+	Campaign   *CampaignInfo
+	CreatedAt  time.Time
+	Targetings *targeting.Targeting
+	Variations []*Variation
 }
 
 // VisitorVGCacheItem represents a visitor variation group cache item for a variation group

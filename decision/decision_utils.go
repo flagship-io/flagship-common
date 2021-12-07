@@ -65,7 +65,7 @@ func GetCampaignsVG(campaigns []*CampaignInfo, visitorID string, context map[str
 		if vg == nil {
 			continue
 		}
-		vg.CampaignType = campaign.Type
+		vg.Campaign = campaign
 		existingCampaignVG[campaign.ID] = true
 		campaignVG = append(campaignVG, vg)
 	}
@@ -77,7 +77,7 @@ func getPreviousABVGIds(variationGroups []*VariationsGroup, existingVar map[stri
 	previousVisVGsAB := []string{}
 	alreadyAdded := map[string]bool{}
 	for _, vg := range variationGroups {
-		if vg.CampaignType != "ab" {
+		if vg.Campaign.Type != "ab" {
 			continue
 		}
 		existingVariations, ok := existingVar[vg.ID]
@@ -94,7 +94,7 @@ func getPreviousABVGIds(variationGroups []*VariationsGroup, existingVar map[stri
 func buildCampaignResponse(vg *VariationsGroup, variation *Variation, shouldFillKeys bool) *decision_response.Campaign {
 	campaignResponse := decision_response.Campaign{
 		Id: &wrappers.StringValue{
-			Value: vg.CampaignID,
+			Value: vg.Campaign.ID,
 		},
 		VariationGroupId: &wrappers.StringValue{
 			Value: vg.ID,
@@ -131,6 +131,6 @@ func buildCampaignResponse(vg *VariationsGroup, variation *Variation, shouldFill
 	}
 
 	campaignResponse.Variation = protoModif
-	campaignResponse.Type = wrapperspb.String(vg.CampaignType)
+	campaignResponse.Type = wrapperspb.String(vg.Campaign.Type)
 	return &campaignResponse
 }
