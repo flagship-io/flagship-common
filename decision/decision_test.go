@@ -2,12 +2,65 @@ package decision
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/flagship-io/flagship-proto/decision_response"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/structpb"
 )
+
+var mu = sync.Mutex{}
+
+var campaigns = map[string]*CampaignInfo{
+	"a": {
+		ID:           "a1",
+		BucketRanges: [][]float64{{0., 100.}},
+		VariationsGroups: map[string]*VariationsGroup{
+			"vga": {
+				ID:         "vga",
+				Targetings: createBoolTargeting(),
+				Variations: []*Variation{
+					{
+						ID:         "vgav1",
+						Allocation: 50,
+						Modifications: &decision_response.Modifications{
+							Type:  decision_response.ModificationsType_FLAG,
+							Value: structpb.NewStringValue("toto1").GetStructValue(),
+						},
+					}, {
+						ID:         "vgav2",
+						Allocation: 50,
+						Modifications: &decision_response.Modifications{
+							Type:  decision_response.ModificationsType_FLAG,
+							Value: structpb.NewStringValue("toto2").GetStructValue(),
+						},
+					},
+				},
+			},
+		},
+	},
+	"b": {
+		ID:           "a2",
+		BucketRanges: [][]float64{{20., 30.}},
+		VariationsGroups: map[string]*VariationsGroup{
+			"vgb": {
+				ID:         "vgb",
+				Targetings: createBoolTargeting(),
+				Variations: []*Variation{
+					{
+						ID:         "vgbv1",
+						Allocation: 100,
+						Modifications: &decision_response.Modifications{
+							Type:  decision_response.ModificationsType_FLAG,
+							Value: structpb.NewStringValue("tata").GetStructValue(),
+						},
+					},
+				},
+			},
+		},
+	},
+}
 
 func mockGetCache(environmentID string, id string) (*VisitorAssignments, error) {
 	vi := VisitorAssignments{}
@@ -27,7 +80,18 @@ func mockActivateCampaigns(activations []*VisitorActivation) error {
 var cache = map[string]*VisitorAssignments{}
 
 func localGetCache(environmentID string, id string) (*VisitorAssignments, error) {
+	mu.Lock()
+	defer func() {
+		mu.Unlock()
+	}()
 	return cache[environmentID+id], nil
+}
+
+func localSetCache(environmentID string, id string, assignment *VisitorAssignments) error {
+	mu.Lock()
+	cache[environmentID+id] = assignment
+	mu.Unlock()
+	return nil
 }
 
 func TestGetCache(t *testing.T) {
@@ -75,6 +139,72 @@ func TestGetCache(t *testing.T) {
 	assert.EqualValues(t, newAssignments, assignments.Anonymous.GetAssignments())
 }
 
+func TestDecisionCache(t *testing.T) {
+	vi := VisitorInfo{}
+	vi.ID = "v1"
+	vi.DecisionGroup = "dg"
+	vi.Context = map[string]*structpb.Value{
+		"isVIP": structpb.NewBoolValue(true),
+	}
+
+	ei := EnvironmentInfo{}
+	ei.ID = "e123"
+	ei.Campaigns = campaigns
+	for _, vg := range ei.Campaigns["a"].VariationsGroups {
+		vg.Campaign = ei.Campaigns["a"]
+	}
+
+	options := DecisionOptions{
+		TriggerHit: true,
+	}
+	// no options
+
+	handlers := DecisionHandlers{}
+	handlers.GetCache = mockGetCache
+	handlers.SaveCache = mockSaveCache
+	handlers.ActivateCampaigns = mockActivateCampaigns
+
+	decision, err := GetDecision(vi, ei, options, handlers)
+
+	// check that campaign matching visitor is returned. Also check that the second variation is set
+	assert.Nil(t, err)
+	assert.Len(t, decision.Campaigns, 1)
+	assert.Equal(t, decision.Campaigns[0].Variation.Id.Value, "vgav2")
+
+	// change the allocation so that visitor should change variation if the cache is disabled
+	ei.Campaigns["a"].VariationsGroups["vga"].Variations[0].Allocation = 90
+	ei.Campaigns["a"].VariationsGroups["vga"].Variations[1].Allocation = 10
+
+	decision, err = GetDecision(vi, ei, options, handlers)
+
+	// check that campaign matching visitor is returned. Also check that the first variation is not chosen
+	assert.Nil(t, err)
+	assert.Len(t, decision.Campaigns, 1)
+	assert.Equal(t, decision.Campaigns[0].Variation.Id.Value, "vgav1")
+
+	// Reset the allocations
+	ei.Campaigns["a"].VariationsGroups["vga"].Variations[0].Allocation = 50
+	ei.Campaigns["a"].VariationsGroups["vga"].Variations[1].Allocation = 50
+
+	// Set "real" local cache to persist visitor allocation
+	handlers.GetCache = localGetCache
+	handlers.SaveCache = localSetCache
+	ei.CacheEnabled = true
+	decision, _ = GetDecision(vi, ei, options, handlers)
+
+	// check that campaign matching visitor is returned. Also check that the first variation is not chosen
+	assert.Equal(t, decision.Campaigns[0].Variation.Id.Value, "vgav2")
+
+	// change the allocation so that visitor should change variation if the cache is disabled
+	ei.Campaigns["a"].VariationsGroups["vga"].Variations[0].Allocation = 90
+	ei.Campaigns["a"].VariationsGroups["vga"].Variations[1].Allocation = 10
+
+	decision, _ = GetDecision(vi, ei, options, handlers)
+
+	// check that campaign matching visitor is returned. Also check that the first variation is not chosen
+	assert.Equal(t, decision.Campaigns[0].Variation.Id.Value, "vgav2")
+}
+
 func TestDecisionBucketInNoCache(t *testing.T) {
 	vi := VisitorInfo{}
 	vi.ID = "v1"
@@ -85,48 +215,7 @@ func TestDecisionBucketInNoCache(t *testing.T) {
 
 	ei := EnvironmentInfo{}
 	ei.ID = "e123"
-	ei.Campaigns = map[string]*CampaignInfo{
-		"a": {
-			ID:           "a1",
-			BucketRanges: [][]float64{{0., 100.}},
-			VariationsGroups: map[string]*VariationsGroup{
-				"vga": {
-					ID:         "vga",
-					Targetings: createBoolTargeting(),
-					Variations: []*Variation{
-						{
-							ID:         "vgav1",
-							Allocation: 100,
-							Modifications: &decision_response.Modifications{
-								Type:  decision_response.ModificationsType_FLAG,
-								Value: structpb.NewStringValue("toto").GetStructValue(),
-							},
-						},
-					},
-				},
-			},
-		},
-		"b": {
-			ID:           "a2",
-			BucketRanges: [][]float64{{20., 30.}},
-			VariationsGroups: map[string]*VariationsGroup{
-				"vgb": {
-					ID:         "vgb",
-					Targetings: createBoolTargeting(),
-					Variations: []*Variation{
-						{
-							ID:         "vgbv1",
-							Allocation: 100,
-							Modifications: &decision_response.Modifications{
-								Type:  decision_response.ModificationsType_FLAG,
-								Value: structpb.NewStringValue("tata").GetStructValue(),
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+	ei.Campaigns = campaigns
 	for _, vg := range ei.Campaigns["a"].VariationsGroups {
 		vg.Campaign = ei.Campaigns["a"]
 	}
