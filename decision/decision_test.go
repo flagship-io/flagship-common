@@ -24,6 +24,57 @@ func mockActivateCampaigns(activations []*VisitorActivation) error {
 	return nil
 }
 
+var cache = map[string]*VisitorAssignments{}
+
+func localGetCache(environmentID string, id string) (*VisitorAssignments, error) {
+	return cache[environmentID+id], nil
+}
+
+func TestGetCache(t *testing.T) {
+	envID := "env_id"
+	visitorID := "visitor_id"
+	anonymousID := "anonymous_id"
+	decisionGroup := "decisionGroup"
+
+	assignments, err := getCache(envID, visitorID, anonymousID, decisionGroup, false, localGetCache)
+	assert.Nil(t, err)
+	assert.Nil(t, assignments.Standard)
+	assert.Nil(t, assignments.Anonymous)
+
+	newAssignments := map[string]*VisitorVGCacheItem{
+		"vg_id": {
+			VariationID: "v_id",
+			Activated:   true,
+		},
+	}
+	newAssignmentsDG := map[string]*VisitorVGCacheItem{
+		"vg2_id": {
+			VariationID: "v2_id",
+			Activated:   true,
+		},
+	}
+	cache[envID+visitorID] = &VisitorAssignments{
+		Assignments: newAssignments,
+	}
+
+	assignments, err = getCache(envID, visitorID, anonymousID, decisionGroup, false, localGetCache)
+	assert.Nil(t, err)
+	assert.EqualValues(t, newAssignments, assignments.Standard.GetAssignments())
+	assert.Nil(t, assignments.Anonymous)
+
+	cache[envID+anonymousID] = &VisitorAssignments{
+		Assignments: newAssignments,
+	}
+	cache[envID+decisionGroup] = &VisitorAssignments{
+		Assignments: newAssignmentsDG,
+	}
+
+	assignments, err = getCache(envID, visitorID, anonymousID, decisionGroup, true, localGetCache)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(assignments.Standard.GetAssignments()))
+	assert.EqualValues(t, newAssignments, assignments.Anonymous.GetAssignments())
+}
+
 func TestDecisionBucketInNoCache(t *testing.T) {
 	vi := VisitorInfo{}
 	vi.ID = "v1"
