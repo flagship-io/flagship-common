@@ -219,7 +219,7 @@ func GetDecision(
 
 		// manage the bucket allocation of the visitor
 		// if the visitor already have been allocated to a variation, we want to bypass the bucket allocation
-		enableBucketAllocation := true
+		enableBucketAllocation := options.EnableBucketAllocation == nil || *options.EnableBucketAllocation
 
 		// If already has variation && assigned variation ID  exist, visitor should not be re-assigned
 		if ok && existingVariation != nil {
