@@ -1,11 +1,7 @@
 github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/flagship-io/flagship-proto v0.0.2 h1:6C/ATBieXLi33X8kp5XJYNW6Q9nHSJQH4I9T4T9ajUw=
-github.com/flagship-io/flagship-proto v0.0.2/go.mod h1:7DLqFLOTZQ9a707glLumZ6tItGuHckSLzSGMxMFwtCU=
-github.com/flagship-io/flagship-proto v0.0.10-0.20211202164823-1f8f0ecf07c5 h1:mqTXq7jXEq6j79xU9n20dtr+VyMtNGEcYNMwDkYyuMw=
-github.com/flagship-io/flagship-proto v0.0.10-0.20211202164823-1f8f0ecf07c5/go.mod h1:Nv5epf8wbbAEx6sAnjPumFy+YQOClXyXlxZzUMUqidw=
-github.com/flagship-io/flagship-proto v0.0.10 h1:zwUiNoybuHjszr93CdvA7A4cAMTl2nOZhI78bGKZwtE=
-github.com/flagship-io/flagship-proto v0.0.10/go.mod h1:Nv5epf8wbbAEx6sAnjPumFy+YQOClXyXlxZzUMUqidw=
+github.com/flagship-io/flagship-proto v0.0.11-0.20211230111007-1816d607ab84 h1:vVmE8+iw7Ir/I2SMGVONShQhwnLW46C6NQArD5TWnZM=
+github.com/flagship-io/flagship-proto v0.0.11-0.20211230111007-1816d607ab84/go.mod h1:Nv5epf8wbbAEx6sAnjPumFy+YQOClXyXlxZzUMUqidw=
 github.com/golang/protobuf v1.5.0/go.mod h1:FsONVRAS9T7sI+LIUmWTfcYkHO4aIWwzhcaSAoJOfIk=
 github.com/golang/protobuf v1.5.2 h1:ROPKBNFfQgOUMifHyP+KYbvpjbdoFNs+aK7DXlji0Tw=
 github.com/golang/protobuf v1.5.2/go.mod h1:XVQd3VNwM+JqD3oG2Ue2ip4fOMUkwXdXDdiuN0vRsmY=
