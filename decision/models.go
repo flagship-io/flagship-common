@@ -55,11 +55,12 @@ type EnvironmentInfo struct {
 }
 
 type DecisionOptions struct {
-	TriggerHit        bool
-	CampaignID        string
-	Tracker           *utils.Tracker
-	ExposeAllKeys     bool
-	IsCumulativeAlloc bool
+	TriggerHit             bool
+	CampaignID             string
+	Tracker                *utils.Tracker
+	ExposeAllKeys          bool
+	IsCumulativeAlloc      bool
+	EnableBucketAllocation *bool
 }
 
 type VisitorActivation struct {

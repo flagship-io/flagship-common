@@ -12,6 +12,93 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
+type AssignmentResult struct {
+	result      *VisitorAssignments
+	visitorType string
+	err         error
+}
+
+type AllVisitorAssignments struct {
+	Standard  *VisitorAssignments
+	Anonymous *VisitorAssignments
+}
+
+func getCache(
+	environmentID string,
+	visitorID string,
+	anonymousID string,
+	decisionGroup string,
+	enableReconciliation bool,
+	getCacheHandler func(environmentID string, id string) (*VisitorAssignments, error)) (*AllVisitorAssignments, error) {
+
+	cacheChan := make(chan (*AssignmentResult))
+	allAssignments := &AllVisitorAssignments{
+		Standard: &VisitorAssignments{
+			Assignments: map[string]*VisitorVGCacheItem{},
+		},
+	}
+
+	var err error
+
+	go func(c chan (*AssignmentResult)) {
+		newAssignments, err := getCacheHandler(environmentID, visitorID)
+		c <- &AssignmentResult{
+			result:      newAssignments,
+			visitorType: "standard",
+			err:         err,
+		}
+	}(cacheChan)
+
+	go func(c chan (*AssignmentResult)) {
+		var newAssignmentsAnonymous *VisitorAssignments
+		var err error
+		if enableReconciliation {
+			newAssignmentsAnonymous, err = getCacheHandler(environmentID, anonymousID)
+		}
+		c <- &AssignmentResult{
+			result:      newAssignmentsAnonymous,
+			visitorType: "anonymous",
+			err:         err,
+		}
+	}(cacheChan)
+
+	go func(c chan (*AssignmentResult)) {
+		var newAssignmentsDG *VisitorAssignments
+		var err error
+		if decisionGroup != "" {
+			newAssignmentsDG, err = getCacheHandler(environmentID, decisionGroup)
+		}
+		c <- &AssignmentResult{
+			result:      newAssignmentsDG,
+			visitorType: "decisionGroup",
+			err:         err,
+		}
+	}(cacheChan)
+
+	assignmentsDG := &VisitorAssignments{}
+	for i := 0; i < 3; i++ {
+		r := <-cacheChan
+		switch r.visitorType {
+		case "standard":
+			allAssignments.Standard = r.result
+		case "anonymous":
+			allAssignments.Anonymous = r.result
+		case "decisionGroup":
+			assignmentsDG = r.result
+		}
+		err = r.err
+	}
+
+	// Assign decision group assignments to visitor
+	if allAssignments.Standard.GetAssignments() != nil {
+		for k, v := range assignmentsDG.GetAssignments() {
+			allAssignments.Standard.Assignments[k] = v
+		}
+	}
+
+	return allAssignments, err
+}
+
 // GetDecision return a decision response from visitor & environment infos
 func GetDecision(
 	visitorInfos VisitorInfo,
@@ -51,11 +138,7 @@ func GetDecision(
 
 	// 2. Get cache variation assignments from cache DB
 	tracker.TimeTrack("Start find existing vID in Cache DB")
-	var assignments *VisitorAssignments
-	var assignmentsAnonymous *VisitorAssignments
-	var assignmentsDG *VisitorAssignments
 
-	var err error
 	enableReconciliation := environmentInfos.UseReconciliation && anonymousID != ""
 	hasMultipleVariations := false
 	for _, vg := range variationGroups {
@@ -69,34 +152,12 @@ func GetDecision(
 	enableCache := environmentInfos.CacheEnabled && (hasMultipleVariations || environmentInfos.SingleAssignment || environmentInfos.UseReconciliation)
 
 	// 2.a Get visitor assignments asynchronously
-	getVisitorAssigns := utils.RunTaskAsync(func() {
-		assignments, err = handlers.GetCache(environmentInfos.ID, visitorID)
-	})
-
-	// 2.b Get anonymous assignments asynchronously
-	getAnonymousAssigns := utils.RunTaskAsync(func() {
-		if enableReconciliation {
-			assignmentsAnonymous, err = handlers.GetCache(environmentInfos.ID, anonymousID)
-		}
-	})
-
-	// 2.c Get decision group assignments asynchronously
-	getDGAssigns := utils.RunTaskAsync(func() {
-		if decisionGroup != "" {
-			assignmentsDG, _ = handlers.GetCache(environmentInfos.ID, decisionGroup)
-		}
-	})
 
 	// 2.c Run parallel execution
+	allCacheAssignments := &AllVisitorAssignments{}
+	var err error
 	if enableCache {
-		_, _, _ = <-getAnonymousAssigns, <-getVisitorAssigns, <-getDGAssigns
-
-		// Assign decision group assignments to visitor
-		if assignmentsDG != nil && assignments != nil {
-			for k, v := range assignmentsDG.Assignments {
-				assignments.Assignments[k] = v
-			}
-		}
+		allCacheAssignments, err = getCache(environmentInfos.ID, visitorID, anonymousID, decisionGroup, enableReconciliation, handlers.GetCache)
 	}
 
 	tracker.TimeTrack("End find existing vID in Cache DB")
@@ -109,7 +170,7 @@ func GetDecision(
 	// Handle single assignment clients
 	previousVisVGsAB := []string{}
 	if environmentInfos.SingleAssignment {
-		previousVisVGsAB = getPreviousABVGIds(variationGroups, assignments.GetAssignments())
+		previousVisVGsAB = getPreviousABVGIds(variationGroups, allCacheAssignments.Standard.GetAssignments())
 	}
 
 	// Initialize future campaign activations
@@ -141,8 +202,8 @@ func GetDecision(
 		var vid string
 		isNew := false
 		isNewAnonymous := false
-		existingAssignment, ok := assignments.GetAssignment(vg.ID)
-		existingAssignmentAnonymous, okAnonymous := assignmentsAnonymous.GetAssignment(vg.ID)
+		existingAssignment, ok := allCacheAssignments.Standard.GetAssignment(vg.ID)
+		existingAssignmentAnonymous, okAnonymous := allCacheAssignments.Anonymous.GetAssignment(vg.ID)
 
 		var existingVariation *Variation
 		var existingAnonymousVariation *Variation
@@ -158,7 +219,7 @@ func GetDecision(
 
 		// manage the bucket allocation of the visitor
 		// if the visitor already have been allocated to a variation, we want to bypass the bucket allocation
-		enableBucketAllocation := true
+		enableBucketAllocation := options.EnableBucketAllocation == nil || *options.EnableBucketAllocation
 
 		// If already has variation && assigned variation ID  exist, visitor should not be re-assigned
 		if ok && existingVariation != nil {
