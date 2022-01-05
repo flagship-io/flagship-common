@@ -207,12 +207,19 @@ func GetDecision(
 
 		var existingVariation *Variation
 		var existingAnonymousVariation *Variation
-		for _, v := range vg.Variations {
-			if ok && v.ID == existingAssignment.VariationID {
-				existingVariation = v
+		if ok || okAnonymous {
+			for _, v := range vg.Variations {
+				if ok && v.ID == existingAssignment.VariationID {
+					existingVariation = v
+				}
+				if okAnonymous && v.ID == existingAssignmentAnonymous.VariationID {
+					existingAnonymousVariation = v
+				}
 			}
-			if okAnonymous && v.ID == existingAssignmentAnonymous.VariationID {
-				existingAnonymousVariation = v
+
+			if existingVariation == nil && existingAnonymousVariation == nil {
+				// Variation has been deleted
+				continue
 			}
 		}
 		var chosenVariation *Variation
