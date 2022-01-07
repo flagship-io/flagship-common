@@ -1,4 +1,4 @@
-package utils
+package decision
 
 import (
 	"log"

@@ -3,7 +3,6 @@ package decision
 import (
 	"time"
 
-	"github.com/flagship-io/flagship-common/internal/utils"
 	"github.com/flagship-io/flagship-proto/decision_response"
 	"github.com/flagship-io/flagship-proto/targeting"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -57,7 +56,7 @@ type Environment struct {
 type DecisionOptions struct {
 	TriggerHit             bool
 	CampaignID             string
-	Tracker                *utils.Tracker
+	Tracker                *Tracker
 	ExposeAllKeys          bool
 	IsCumulativeAlloc      bool
 	EnableBucketAllocation *bool
