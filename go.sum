@@ -1,9 +1,5 @@
 github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/flagship-io/flagship-proto v0.0.2 h1:6C/ATBieXLi33X8kp5XJYNW6Q9nHSJQH4I9T4T9ajUw=
-github.com/flagship-io/flagship-proto v0.0.2/go.mod h1:7DLqFLOTZQ9a707glLumZ6tItGuHckSLzSGMxMFwtCU=
-github.com/flagship-io/flagship-proto v0.0.10-0.20211202164823-1f8f0ecf07c5 h1:mqTXq7jXEq6j79xU9n20dtr+VyMtNGEcYNMwDkYyuMw=
-github.com/flagship-io/flagship-proto v0.0.10-0.20211202164823-1f8f0ecf07c5/go.mod h1:Nv5epf8wbbAEx6sAnjPumFy+YQOClXyXlxZzUMUqidw=
 github.com/flagship-io/flagship-proto v0.0.10 h1:zwUiNoybuHjszr93CdvA7A4cAMTl2nOZhI78bGKZwtE=
 github.com/flagship-io/flagship-proto v0.0.10/go.mod h1:Nv5epf8wbbAEx6sAnjPumFy+YQOClXyXlxZzUMUqidw=
 github.com/golang/protobuf v1.5.0/go.mod h1:FsONVRAS9T7sI+LIUmWTfcYkHO4aIWwzhcaSAoJOfIk=
@@ -18,8 +14,9 @@ github.com/spaolacci/murmur3 v1.1.0/go.mod h1:JwIasOWyU6f++ZhiEuf87xNszmSA2myDM2
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.7.0 h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5CcY=
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
-golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543 h1:E7g+9GITq07hpfrRu66IVDexMakfv52eLZ2CXBWiKr4=
 golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
+golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 google.golang.org/protobuf v1.26.0-rc.1/go.mod h1:jlhhOSvTdKEhbULTjvd4ARK9grFBp09yW+WbY/TyQbw=
 google.golang.org/protobuf v1.26.0/go.mod h1:9q0QmTI4eRPtz6boOQmLYwt+qCgq0jsYwAQnmE0givc=
 google.golang.org/protobuf v1.27.1 h1:SnqbnDw1V7RiZcXPx5MEeqPv2s79L9i7BJUlG/+RurQ=

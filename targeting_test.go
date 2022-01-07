@@ -224,7 +224,7 @@ func TestContextListStringTargeting(t *testing.T) {
 }
 
 func TestComplexTargeting(t *testing.T) {
-	vgTest := &VariationsGroup{
+	vgTest := &VariationGroup{
 		ID: "test-vg",
 		Targetings: &targeting.Targeting{
 			TargetingGroups: []*targeting.Targeting_TargetingGroup{
@@ -286,7 +286,7 @@ func TestComplexTargeting(t *testing.T) {
 			StringValue: "deployment",
 		},
 	}
-	test, err := TargetingMatch(vgTest, "test@abtasty.com", context)
+	test, err := targetingMatch(vgTest, "test@abtasty.com", context)
 	assert.Nil(t, err)
 	assert.True(t, test)
 
@@ -295,7 +295,7 @@ func TestComplexTargeting(t *testing.T) {
 			StringValue: "ab",
 		},
 	}
-	test, err = TargetingMatch(vgTest, "test@abtasty.com", context)
+	test, err = targetingMatch(vgTest, "test@abtasty.com", context)
 	assert.Nil(t, err)
 	assert.False(t, test)
 
@@ -304,7 +304,7 @@ func TestComplexTargeting(t *testing.T) {
 			BoolValue: true,
 		},
 	}
-	test, err = TargetingMatch(vgTest, "test@abtasty.com", context)
+	test, err = targetingMatch(vgTest, "test@abtasty.com", context)
 	assert.Nil(t, err)
 	assert.True(t, test)
 }

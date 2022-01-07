@@ -3,7 +3,7 @@ package decision
 import (
 	"time"
 
-	"github.com/flagship-io/flagship-common/utils"
+	"github.com/flagship-io/flagship-common/internal/utils"
 	"github.com/flagship-io/flagship-proto/decision_response"
 	"github.com/flagship-io/flagship-proto/targeting"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -18,16 +18,16 @@ type Variation struct {
 }
 
 // VariationsGroupInfo stores the variation group information for decision making
-type VariationsGroup struct {
+type VariationGroup struct {
 	ID         string
-	Campaign   *CampaignInfo
+	Campaign   *Campaign
 	CreatedAt  time.Time
 	Targetings *targeting.Targeting
 	Variations []*Variation
 }
 
-// VisitorVGCacheItem represents a visitor variation group cache item for a variation group
-type VisitorVGCacheItem struct {
+// VisitorCache represents a visitor variation group cache item for a variation group
+type VisitorCache struct {
 	VariationID string
 	Activated   bool
 }
@@ -35,19 +35,19 @@ type VisitorVGCacheItem struct {
 // VisitorAssignments represents a visitor assignment for a variation group
 type VisitorAssignments struct {
 	Timestamp   int64
-	Assignments map[string]*VisitorVGCacheItem
+	Assignments map[string]*VisitorCache
 }
 
-type VisitorInfo struct {
+type Visitor struct {
 	ID            string
 	AnonymousID   string
 	DecisionGroup string
 	Context       map[string]*structpb.Value
 }
 
-type EnvironmentInfo struct {
+type Environment struct {
 	ID                string
-	Campaigns         map[string]*CampaignInfo
+	Campaigns         map[string]*Campaign
 	IsPanic           bool
 	SingleAssignment  bool
 	UseReconciliation bool
@@ -77,21 +77,21 @@ type DecisionHandlers struct {
 	ActivateCampaigns func(activations []*VisitorActivation) error
 }
 
-// CampaignInfo stores the campaign information for decision making
-type CampaignInfo struct {
-	ID               string
-	CustomID         *string
-	VariationsGroups map[string]*VariationsGroup
-	Type             string
-	CreatedAt        time.Time
-	BucketRanges     [][]float64
+// Campaign stores the campaign information for decision making
+type Campaign struct {
+	ID              string
+	CustomID        *string
+	VariationGroups map[string]*VariationGroup
+	Type            string
+	CreatedAt       time.Time
+	BucketRanges    [][]float64
 }
 
-type byCreatedAtCampaigns []*CampaignInfo
-type byCreatedAtVG []*VariationsGroup
+type byCreatedAtCampaigns []*Campaign
+type byCreatedAtVG []*VariationGroup
 
 // GetAssignments returns all the assigments
-func (va *VisitorAssignments) GetAssignments() map[string]*VisitorVGCacheItem {
+func (va *VisitorAssignments) getAssignments() map[string]*VisitorCache {
 	if va == nil {
 		return nil
 	}
@@ -100,7 +100,7 @@ func (va *VisitorAssignments) GetAssignments() map[string]*VisitorVGCacheItem {
 }
 
 // GetAssignment returns the existing assignment of the visitor for the vg ID
-func (va *VisitorAssignments) GetAssignment(vgID string) (*VisitorVGCacheItem, bool) {
+func (va *VisitorAssignments) getAssignment(vgID string) (*VisitorCache, bool) {
 	if va == nil {
 		return nil, false
 	}

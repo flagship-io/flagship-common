@@ -36,26 +36,26 @@ func createBoolTargeting() *targeting.Targeting {
 	return &targeting.Targeting{TargetingGroups: targetingGroups}
 }
 
-func TestGetCampaignsArray(t *testing.T) {
-	campaignsMap := map[string]*CampaignInfo{}
-	campaignsMap["testNEW"] = &CampaignInfo{
+func TestgetCampaignsArray(t *testing.T) {
+	campaignsMap := map[string]*Campaign{}
+	campaignsMap["testNEW"] = &Campaign{
 		ID:        "testIDNEW",
 		CreatedAt: time.Now(),
 	}
-	campaignsMap["testOLD"] = &CampaignInfo{
+	campaignsMap["testOLD"] = &Campaign{
 		ID:        "testIDOLD",
 		CreatedAt: time.Now().Add(-1 * time.Hour),
 	}
-	campaignsMap["testMIDDLE"] = &CampaignInfo{
+	campaignsMap["testMIDDLE"] = &Campaign{
 		ID:        "testIDMIDDLE",
 		CreatedAt: time.Now().Add(-30 * time.Minute),
 	}
-	campaignsMap["testDUPLICATE"] = &CampaignInfo{
+	campaignsMap["testDUPLICATE"] = &Campaign{
 		ID:        "testIDNEW",
 		CreatedAt: time.Now(),
 	}
 
-	campaigns := GetCampaignsArray(campaignsMap)
+	campaigns := getCampaignsArray(campaignsMap)
 
 	if campaigns[0].ID != campaignsMap["testNEW"].ID {
 		t.Errorf("Expected newest campaign first, got %v", campaigns[0].ID)
@@ -75,36 +75,36 @@ func TestGetCampaignsArray(t *testing.T) {
 }
 
 func TestGetPreviousABVGIds(t *testing.T) {
-	vgs := []*VariationsGroup{{
-		Campaign: &CampaignInfo{
+	vgs := []*VariationGroup{{
+		Campaign: &Campaign{
 			ID:   "testCampaignId1",
 			Type: "ab",
 		},
 		ID:        "testId1",
 		CreatedAt: time.Now(),
 	}, {
-		Campaign: &CampaignInfo{
+		Campaign: &Campaign{
 			ID:   "testCampaignId2",
 			Type: "flag",
 		},
 		ID:        "testId2",
 		CreatedAt: time.Now(),
 	}, {
-		Campaign: &CampaignInfo{
+		Campaign: &Campaign{
 			ID:   "testCampaignId3",
 			Type: "ab",
 		},
 		ID:        "testId1",
 		CreatedAt: time.Now(),
 	}, {
-		Campaign: &CampaignInfo{
+		Campaign: &Campaign{
 			ID:   "testCampaignId4",
 			Type: "ab",
 		},
 		ID:        "testId3",
 		CreatedAt: time.Now(),
 	}, {
-		Campaign: &CampaignInfo{
+		Campaign: &Campaign{
 			ID:   "testCampaignId5",
 			Type: "ab",
 		},
@@ -112,7 +112,7 @@ func TestGetPreviousABVGIds(t *testing.T) {
 		CreatedAt: time.Now(),
 	}}
 
-	existingAssignments := map[string]*VisitorVGCacheItem{
+	existingAssignments := map[string]*VisitorCache{
 		"testId1": {
 			VariationID: "vid1",
 			Activated:   true,
@@ -135,11 +135,11 @@ func TestGetPreviousABVGIds(t *testing.T) {
 	assert.EqualValues(t, []string{"testId1", "testId4"}, previousVGIds)
 }
 
-func TestGetVariationGroup(t *testing.T) {
-	vgs := map[string]*VariationsGroup{}
+func TestgetVariationGroup(t *testing.T) {
+	vgs := map[string]*VariationGroup{}
 
-	vgs["testVGIDNEW"] = &VariationsGroup{
-		Campaign: &CampaignInfo{
+	vgs["testVGIDNEW"] = &VariationGroup{
+		Campaign: &Campaign{
 			ID: "testCampaignIdNEW",
 		},
 		ID:         "testId",
@@ -147,8 +147,8 @@ func TestGetVariationGroup(t *testing.T) {
 		CreatedAt:  time.Now(),
 	}
 
-	vgs["testVGIDOLD"] = &VariationsGroup{
-		Campaign: &CampaignInfo{
+	vgs["testVGIDOLD"] = &VariationGroup{
+		Campaign: &Campaign{
 			ID: "testCampaignIdOLD",
 		},
 		ID:         "testId",
@@ -160,23 +160,23 @@ func TestGetVariationGroup(t *testing.T) {
 		"age": structpb.NewNumberValue(30),
 	}
 
-	vg := GetVariationGroup(vgs, "testVID", context)
+	vg := getVariationGroup(vgs, "testVID", context)
 	assert.Equal(t, vgs["testVGIDOLD"], vg)
 }
 
-func TestGetCampaignsVG(t *testing.T) {
-	vgs := map[string]*VariationsGroup{}
-	vgs["testVGID"] = &VariationsGroup{
-		Campaign: &CampaignInfo{
+func TestgetCampaignsVG(t *testing.T) {
+	vgs := map[string]*VariationGroup{}
+	vgs["testVGID"] = &VariationGroup{
+		Campaign: &Campaign{
 			ID: "testCampaignId",
 		},
 		ID:         "testId",
 		Targetings: createNumberTargeting(),
 		CreatedAt:  time.Now(),
 	}
-	vgsNotTargeted := map[string]*VariationsGroup{}
-	vgsNotTargeted["testVGIDNotTargeted"] = &VariationsGroup{
-		Campaign: &CampaignInfo{
+	vgsNotTargeted := map[string]*VariationGroup{}
+	vgsNotTargeted["testVGIDNotTargeted"] = &VariationGroup{
+		Campaign: &Campaign{
 			ID: "testCampaignIdNotTargeted",
 		},
 		ID:         "testIdNotTargeted",
@@ -187,21 +187,21 @@ func TestGetCampaignsVG(t *testing.T) {
 	context := map[string]*protoStruct.Value{
 		"age": structpb.NewNumberValue(30),
 	}
-	campaignInfos := []*CampaignInfo{
+	campaignInfos := []*Campaign{
 		{
-			ID:               "testCampaignId",
-			VariationsGroups: vgs,
+			ID:              "testCampaignId",
+			VariationGroups: vgs,
 		},
 		{
-			ID:               "testCampaignId",
-			VariationsGroups: vgs,
+			ID:              "testCampaignId",
+			VariationGroups: vgs,
 		},
 		{
-			ID:               "testCampaignIdNotTargeted",
-			VariationsGroups: vgsNotTargeted,
+			ID:              "testCampaignIdNotTargeted",
+			VariationGroups: vgsNotTargeted,
 		},
 	}
-	vgsResp := GetCampaignsVG(campaignInfos, "testVID", context)
+	vgsResp := getCampaignsVG(campaignInfos, "testVID", context)
 	assert.Equal(t, vgs["testVGID"], vgsResp[0])
 	assert.Equal(t, 1, len(vgsResp))
 }
@@ -236,8 +236,8 @@ func TestBuildCampaignResponse(t *testing.T) {
 		Modifications: nil,
 	}
 
-	vg := &VariationsGroup{
-		Campaign: &CampaignInfo{
+	vg := &VariationGroup{
+		Campaign: &Campaign{
 			ID:   "cid",
 			Type: "ab",
 		},

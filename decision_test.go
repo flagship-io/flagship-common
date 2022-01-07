@@ -12,11 +12,11 @@ import (
 
 var mu = sync.Mutex{}
 
-var campaigns = map[string]*CampaignInfo{
+var campaigns = map[string]*Campaign{
 	"a": {
 		ID:           "a1",
 		BucketRanges: [][]float64{{0., 100.}},
-		VariationsGroups: map[string]*VariationsGroup{
+		VariationGroups: map[string]*VariationGroup{
 			"vga": {
 				ID:         "vga",
 				Targetings: createBoolTargeting(),
@@ -43,7 +43,7 @@ var campaigns = map[string]*CampaignInfo{
 	"b": {
 		ID:           "a2",
 		BucketRanges: [][]float64{{20., 30.}},
-		VariationsGroups: map[string]*VariationsGroup{
+		VariationGroups: map[string]*VariationGroup{
 			"vgb": {
 				ID:         "vgb",
 				Targetings: createBoolTargeting(),
@@ -105,13 +105,13 @@ func TestGetCache(t *testing.T) {
 	assert.Nil(t, assignments.Standard)
 	assert.Nil(t, assignments.Anonymous)
 
-	newAssignments := map[string]*VisitorVGCacheItem{
+	newAssignments := map[string]*VisitorCache{
 		"vg_id": {
 			VariationID: "v_id",
 			Activated:   true,
 		},
 	}
-	newAssignmentsDG := map[string]*VisitorVGCacheItem{
+	newAssignmentsDG := map[string]*VisitorCache{
 		"vg2_id": {
 			VariationID: "v2_id",
 			Activated:   true,
@@ -123,7 +123,7 @@ func TestGetCache(t *testing.T) {
 
 	assignments, err = getCache(envID, visitorID, anonymousID, decisionGroup, false, localGetCache)
 	assert.Nil(t, err)
-	assert.EqualValues(t, newAssignments, assignments.Standard.GetAssignments())
+	assert.EqualValues(t, newAssignments, assignments.Standard.getAssignments())
 	assert.Nil(t, assignments.Anonymous)
 
 	cache[envID+anonymousID] = &VisitorAssignments{
@@ -135,22 +135,22 @@ func TestGetCache(t *testing.T) {
 
 	assignments, err = getCache(envID, visitorID, anonymousID, decisionGroup, true, localGetCache)
 	assert.Nil(t, err)
-	assert.Equal(t, 2, len(assignments.Standard.GetAssignments()))
-	assert.EqualValues(t, newAssignments, assignments.Anonymous.GetAssignments())
+	assert.Equal(t, 2, len(assignments.Standard.getAssignments()))
+	assert.EqualValues(t, newAssignments, assignments.Anonymous.getAssignments())
 }
 
 func TestDecisionCache(t *testing.T) {
-	vi := VisitorInfo{}
+	vi := Visitor{}
 	vi.ID = "v1"
 	vi.DecisionGroup = "dg"
 	vi.Context = map[string]*structpb.Value{
 		"isVIP": structpb.NewBoolValue(true),
 	}
 
-	ei := EnvironmentInfo{}
+	ei := Environment{}
 	ei.ID = "e123"
 	ei.Campaigns = campaigns
-	for _, vg := range ei.Campaigns["a"].VariationsGroups {
+	for _, vg := range ei.Campaigns["a"].VariationGroups {
 		vg.Campaign = ei.Campaigns["a"]
 	}
 
@@ -172,8 +172,8 @@ func TestDecisionCache(t *testing.T) {
 	assert.Equal(t, decision.Campaigns[0].Variation.Id.Value, "vgav2")
 
 	// change the allocation so that visitor should change variation if the cache is disabled
-	ei.Campaigns["a"].VariationsGroups["vga"].Variations[0].Allocation = 90
-	ei.Campaigns["a"].VariationsGroups["vga"].Variations[1].Allocation = 10
+	ei.Campaigns["a"].VariationGroups["vga"].Variations[0].Allocation = 90
+	ei.Campaigns["a"].VariationGroups["vga"].Variations[1].Allocation = 10
 
 	decision, err = GetDecision(vi, ei, options, handlers)
 
@@ -183,8 +183,8 @@ func TestDecisionCache(t *testing.T) {
 	assert.Equal(t, decision.Campaigns[0].Variation.Id.Value, "vgav1")
 
 	// Reset the allocations
-	ei.Campaigns["a"].VariationsGroups["vga"].Variations[0].Allocation = 50
-	ei.Campaigns["a"].VariationsGroups["vga"].Variations[1].Allocation = 50
+	ei.Campaigns["a"].VariationGroups["vga"].Variations[0].Allocation = 50
+	ei.Campaigns["a"].VariationGroups["vga"].Variations[1].Allocation = 50
 
 	// Set "real" local cache to persist visitor allocation
 	handlers.GetCache = localGetCache
@@ -196,8 +196,8 @@ func TestDecisionCache(t *testing.T) {
 	assert.Equal(t, decision.Campaigns[0].Variation.Id.Value, "vgav2")
 
 	// change the allocation so that visitor should change variation if the cache is disabled
-	ei.Campaigns["a"].VariationsGroups["vga"].Variations[0].Allocation = 90
-	ei.Campaigns["a"].VariationsGroups["vga"].Variations[1].Allocation = 10
+	ei.Campaigns["a"].VariationGroups["vga"].Variations[0].Allocation = 90
+	ei.Campaigns["a"].VariationGroups["vga"].Variations[1].Allocation = 10
 
 	decision, _ = GetDecision(vi, ei, options, handlers)
 
@@ -206,20 +206,20 @@ func TestDecisionCache(t *testing.T) {
 }
 
 func TestDecisionBucketInNoCache(t *testing.T) {
-	vi := VisitorInfo{}
+	vi := Visitor{}
 	vi.ID = "v1"
 	vi.Context = map[string]*structpb.Value{
 		"isVIP": structpb.NewBoolValue(true),
 	}
 	vi.DecisionGroup = "decision"
 
-	ei := EnvironmentInfo{}
+	ei := Environment{}
 	ei.ID = "e123"
 	ei.Campaigns = campaigns
-	for _, vg := range ei.Campaigns["a"].VariationsGroups {
+	for _, vg := range ei.Campaigns["a"].VariationGroups {
 		vg.Campaign = ei.Campaigns["a"]
 	}
-	for _, vg := range ei.Campaigns["b"].VariationsGroups {
+	for _, vg := range ei.Campaigns["b"].VariationGroups {
 		vg.Campaign = ei.Campaigns["b"]
 	}
 
