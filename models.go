@@ -80,7 +80,7 @@ type DecisionHandlers struct {
 // Campaign stores the campaign information for decision making
 type Campaign struct {
 	ID              string
-	CustomID        *string
+	Slug            *string
 	VariationGroups map[string]*VariationGroup
 	Type            string
 	CreatedAt       time.Time
