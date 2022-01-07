@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/flagship-io/flagship-common/internal/utils"
@@ -307,8 +308,12 @@ func GetDecision(
 	}
 
 	now := time.Now()
-	_, _, _, _ = <-utils.RunTaskAsync(func() {
-		if enableCache && len(newVGAssignments) > 0 && handlers.SaveCache != nil {
+	var wg sync.WaitGroup
+
+	if enableCache && len(newVGAssignments) > 0 && handlers.SaveCache != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 			// 4 Persist visitor ID new vg assignments to cache db
 			err := handlers.SaveCache(envID, visitorID, &VisitorAssignments{
 				Timestamp:   now.Unix(),
@@ -317,9 +322,12 @@ func GetDecision(
 			if err != nil {
 				log.Printf("Error occured on cache saving: %v", err)
 			}
-		}
-	}), utils.RunTaskAsync(func() {
-		if enableCache && len(newVGAssignmentsAnonymous) > 0 && handlers.SaveCache != nil {
+		}()
+	}
+	if enableCache && len(newVGAssignmentsAnonymous) > 0 && handlers.SaveCache != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 			// 4 Persist anonymous ID new vg assignments to cache db
 			err := handlers.SaveCache(envID, anonymousID, &VisitorAssignments{
 				Timestamp:   now.Unix(),
@@ -328,9 +336,12 @@ func GetDecision(
 			if err != nil {
 				log.Printf("Error occured on cache saving: %v", err)
 			}
-		}
-	}), utils.RunTaskAsync(func() {
-		if enableCache && decisionGroup != "" && handlers.SaveCache != nil {
+		}()
+	}
+	if enableCache && decisionGroup != "" && handlers.SaveCache != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 			// 5 Persist decision group new vg assignments to cache db
 			err := handlers.SaveCache(envID, decisionGroup, &VisitorAssignments{
 				Timestamp:   now.Unix(),
@@ -339,17 +350,21 @@ func GetDecision(
 			if err != nil {
 				log.Printf("Error occured on cache saving: %v", err)
 			}
-		}
-	}), <-utils.RunTaskAsync(func() {
-		if len(cActivations) > 0 && handlers.ActivateCampaigns != nil {
+		}()
+	}
+	if len(cActivations) > 0 && handlers.ActivateCampaigns != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 			tracker.TimeTrack("Start activating campaigns hit")
 			err := handlers.ActivateCampaigns(cActivations)
 			if err != nil {
 				log.Printf("Error occured on campaign activation: %v", err)
 			}
 			tracker.TimeTrack("End activating campaigns hit")
-		}
-	})
+		}()
+	}
+	wg.Wait()
 
 	return decisionResponse, nil
 }
