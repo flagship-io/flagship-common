@@ -7,7 +7,6 @@ import (
 
 	"github.com/flagship-io/flagship-proto/decision_response"
 	protoStruct "github.com/golang/protobuf/ptypes/struct"
-	"github.com/golang/protobuf/ptypes/wrappers"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -93,12 +92,11 @@ func getPreviousABVGIds(variationGroups []*VariationsGroup, existingVar map[stri
 // buildCampaignResponse creates a decision campaign response, filling out empty flag keys for each variation if needed
 func buildCampaignResponse(vg *VariationsGroup, variation *Variation, shouldFillKeys bool) *decision_response.Campaign {
 	campaignResponse := decision_response.Campaign{
-		Id: &wrappers.StringValue{
-			Value: vg.Campaign.ID,
-		},
-		VariationGroupId: &wrappers.StringValue{
-			Value: vg.ID,
-		},
+		Id:               wrapperspb.String(vg.Campaign.ID),
+		VariationGroupId: wrapperspb.String(vg.ID),
+	}
+	if vg.Campaign.Slug != nil {
+		campaignResponse.Slug = wrapperspb.String(*vg.Campaign.Slug)
 	}
 
 	if shouldFillKeys {
@@ -123,9 +121,7 @@ func buildCampaignResponse(vg *VariationsGroup, variation *Variation, shouldFill
 	}
 
 	protoModif := &decision_response.Variation{
-		Id: &wrappers.StringValue{
-			Value: variation.ID,
-		},
+		Id:            wrapperspb.String(variation.ID),
 		Modifications: variation.Modifications,
 		Reference:     variation.Reference,
 	}
