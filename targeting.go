@@ -10,8 +10,8 @@ import (
 	protoStruct "github.com/golang/protobuf/ptypes/struct"
 )
 
-// TargetingMatch returns true if a visitor ID and context match the variationGroup targeting
-func TargetingMatch(variationGroup *VariationsGroup, visitorID string, context map[string]*protoStruct.Value) (bool, error) {
+// targetingMatch returns true if a visitor ID and context match the variationGroup targeting
+func targetingMatch(variationGroup *VariationGroup, visitorID string, context map[string]*protoStruct.Value) (bool, error) {
 	globalMatch := false
 	for _, targetingGroup := range variationGroup.Targetings.GetTargetingGroups() {
 		matchGroup := len(targetingGroup.GetTargetings()) > 0

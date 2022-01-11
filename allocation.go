@@ -20,8 +20,8 @@ func genHashFloat(visitorID string, vgID string) (float32, error) {
 	return float32(hashed % 100), nil
 }
 
-// GetRandomAllocation returns a random allocation for a variationGroup
-func GetRandomAllocation(visitorID string, variationGroup *VariationsGroup, isCumulativeAlloc bool) (*Variation, error) {
+// getRandomAllocation returns a random allocation for a variationGroup
+func getRandomAllocation(visitorID string, variationGroup *VariationGroup, isCumulativeAlloc bool) (*Variation, error) {
 	z, err := genHashFloat(visitorID, variationGroup.ID)
 	if err != nil {
 		return nil, err
@@ -42,7 +42,7 @@ func GetRandomAllocation(visitorID string, variationGroup *VariationsGroup, isCu
 	return nil, errors.New("Visitor untracked")
 }
 
-func IsVisitorInBucket(visitorID string, campaign *CampaignInfo) (bool, error) {
+func isVisitorInBucket(visitorID string, campaign *Campaign) (bool, error) {
 	if campaign == nil {
 		return false, errors.New("campaign is null")
 	}
