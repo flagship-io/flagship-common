@@ -36,7 +36,7 @@ func createBoolTargeting() *targeting.Targeting {
 	return &targeting.Targeting{TargetingGroups: targetingGroups}
 }
 
-func TestgetCampaignsArray(t *testing.T) {
+func TestGetCampaignsArray(t *testing.T) {
 	campaignsMap := map[string]*Campaign{}
 	campaignsMap["testNEW"] = &Campaign{
 		ID:        "testIDNEW",
@@ -55,7 +55,7 @@ func TestgetCampaignsArray(t *testing.T) {
 		CreatedAt: time.Now(),
 	}
 
-	campaigns := getCampaignsArray(campaignsMap)
+	campaigns := GetCampaignsArray(campaignsMap)
 
 	if campaigns[0].ID != campaignsMap["testNEW"].ID {
 		t.Errorf("Expected newest campaign first, got %v", campaigns[0].ID)
