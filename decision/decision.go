@@ -288,14 +288,14 @@ func GetDecision(
 		}
 
 		if triggerHit {
-			visitorIDActivate := anonymousID
-			if enableReconciliation || anonymousID == "" {
-				visitorIDActivate = visitorID
+			anonymousIDActivate := visitorID
+			if enableReconciliation {
+				anonymousIDActivate = anonymousID
 			}
 			cActivations = append(cActivations, &VisitorActivation{
 				EnvironmentID:    envID,
-				VisitorID:        visitorIDActivate,
-				AnonymousID:      anonymousID,
+				VisitorID:        visitorID,
+				AnonymousID:      anonymousIDActivate,
 				VariationGroupID: vg.ID,
 				VariationID:      vid,
 			})
