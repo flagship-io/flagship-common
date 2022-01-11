@@ -265,7 +265,7 @@ func TestVisitorShouldNotBeAssignedWhenVariationDeleted(t *testing.T) {
 
 	// delete variation and check that visitor is not returned
 	campaignVars := ei.Campaigns["a"].VariationsGroups["vga"].Variations
-	ei.Campaigns["a"].VariationsGroups["vga"].Variations = append(campaignVars[:0], campaignVars[1:]...)
+	ei.Campaigns["a"].VariationsGroups["vga"].Variations = campaignVars[1:]
 	decision, _ := GetDecision(vi, ei, options, handlers)
 
 	assert.Len(t, decision.Campaigns, 0)
