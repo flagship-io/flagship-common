@@ -7,15 +7,14 @@ import (
 
 	"github.com/flagship-io/flagship-proto/decision_response"
 	protoStruct "github.com/golang/protobuf/ptypes/struct"
-	"github.com/golang/protobuf/ptypes/wrappers"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
-// GetCampaignsArray returns the first campaign that matches the campaign ID
-func GetCampaignsArray(campaigns map[string]*CampaignInfo) []*CampaignInfo {
+// getCampaignsArray returns the first campaign that matches the campaign ID
+func getCampaignsArray(campaigns map[string]*Campaign) []*Campaign {
 	// Use ID array to sort variation groups by ID to force order of iteration
-	cArray := []*CampaignInfo{}
+	cArray := []*Campaign{}
 	cIDs := map[string]bool{}
 	for _, c := range campaigns {
 		if _, ok := cIDs[c.ID]; !ok {
@@ -28,17 +27,17 @@ func GetCampaignsArray(campaigns map[string]*CampaignInfo) []*CampaignInfo {
 	return cArray
 }
 
-// GetVariationGroup returns the first variationGroup that matches the visitorId and context
-func GetVariationGroup(variationGroups map[string]*VariationsGroup, visitorID string, context map[string]*protoStruct.Value) *VariationsGroup {
+// getVariationGroup returns the first variationGroup that matches the visitorId and context
+func getVariationGroup(variationGroups map[string]*VariationGroup, visitorID string, context map[string]*protoStruct.Value) *VariationGroup {
 	// Use ID array to sort variation groups by ID to force order of iteration
-	vgArray := []*VariationsGroup{}
+	vgArray := []*VariationGroup{}
 	for _, vg := range variationGroups {
 		vgArray = append(vgArray, vg)
 	}
 	sort.Sort(byCreatedAtVG(vgArray))
 
 	for _, variationGroup := range vgArray {
-		match, err := TargetingMatch(variationGroup, visitorID, context)
+		match, err := targetingMatch(variationGroup, visitorID, context)
 		if err != nil {
 			log.Println(fmt.Sprintf("Targeting match error variationGroupId %s, user %s: %s", variationGroup.ID, visitorID, err))
 		}
@@ -49,9 +48,9 @@ func GetVariationGroup(variationGroups map[string]*VariationsGroup, visitorID st
 	return nil
 }
 
-// GetCampaignsVG returns the variation groups that target visitor
-func GetCampaignsVG(campaigns []*CampaignInfo, visitorID string, context map[string]*structpb.Value) []*VariationsGroup {
-	campaignVG := []*VariationsGroup{}
+// getCampaignsVG returns the variation groups that target visitor
+func getCampaignsVG(campaigns []*Campaign, visitorID string, context map[string]*structpb.Value) []*VariationGroup {
+	campaignVG := []*VariationGroup{}
 	existingCampaignVG := make(map[string]bool)
 	for _, campaign := range campaigns {
 		_, ok := existingCampaignVG[campaign.ID]
@@ -60,7 +59,7 @@ func GetCampaignsVG(campaigns []*CampaignInfo, visitorID string, context map[str
 			continue
 		}
 
-		vg := GetVariationGroup(campaign.VariationsGroups, visitorID, context)
+		vg := getVariationGroup(campaign.VariationGroups, visitorID, context)
 
 		if vg == nil {
 			continue
@@ -73,7 +72,7 @@ func GetCampaignsVG(campaigns []*CampaignInfo, visitorID string, context map[str
 }
 
 // getPreviousABVGIds returns previously assigned AB test campaigns for visitor
-func getPreviousABVGIds(variationGroups []*VariationsGroup, existingVar map[string]*VisitorVGCacheItem) []string {
+func getPreviousABVGIds(variationGroups []*VariationGroup, existingVar map[string]*VisitorCache) []string {
 	previousVisVGsAB := []string{}
 	alreadyAdded := map[string]bool{}
 	for _, vg := range variationGroups {
@@ -91,14 +90,13 @@ func getPreviousABVGIds(variationGroups []*VariationsGroup, existingVar map[stri
 }
 
 // buildCampaignResponse creates a decision campaign response, filling out empty flag keys for each variation if needed
-func buildCampaignResponse(vg *VariationsGroup, variation *Variation, shouldFillKeys bool) *decision_response.Campaign {
+func buildCampaignResponse(vg *VariationGroup, variation *Variation, shouldFillKeys bool) *decision_response.Campaign {
 	campaignResponse := decision_response.Campaign{
-		Id: &wrappers.StringValue{
-			Value: vg.Campaign.ID,
-		},
-		VariationGroupId: &wrappers.StringValue{
-			Value: vg.ID,
-		},
+		Id:               wrapperspb.String(vg.Campaign.ID),
+		VariationGroupId: wrapperspb.String(vg.ID),
+	}
+	if vg.Campaign.Slug != nil {
+		campaignResponse.Slug = wrapperspb.String(*vg.Campaign.Slug)
 	}
 
 	if shouldFillKeys {
@@ -123,9 +121,7 @@ func buildCampaignResponse(vg *VariationsGroup, variation *Variation, shouldFill
 	}
 
 	protoModif := &decision_response.Variation{
-		Id: &wrappers.StringValue{
-			Value: variation.ID,
-		},
+		Id:            wrapperspb.String(variation.ID),
 		Modifications: variation.Modifications,
 		Reference:     variation.Reference,
 	}

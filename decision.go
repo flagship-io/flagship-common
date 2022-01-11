@@ -5,20 +5,21 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
-	"github.com/flagship-io/flagship-common/utils"
+	"github.com/flagship-io/flagship-common/internal/utils"
 	"github.com/flagship-io/flagship-proto/decision_response"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
-type AssignmentResult struct {
+type assignmentResult struct {
 	result      *VisitorAssignments
 	visitorType string
 	err         error
 }
 
-type AllVisitorAssignments struct {
+type allVisitorAssignments struct {
 	Standard  *VisitorAssignments
 	Anonymous *VisitorAssignments
 }
@@ -29,46 +30,46 @@ func getCache(
 	anonymousID string,
 	decisionGroup string,
 	enableReconciliation bool,
-	getCacheHandler func(environmentID string, id string) (*VisitorAssignments, error)) (*AllVisitorAssignments, error) {
+	getCacheHandler func(environmentID string, id string) (*VisitorAssignments, error)) (*allVisitorAssignments, error) {
 
-	cacheChan := make(chan (*AssignmentResult))
-	allAssignments := &AllVisitorAssignments{
+	cacheChan := make(chan (*assignmentResult))
+	allAssignments := &allVisitorAssignments{
 		Standard: &VisitorAssignments{
-			Assignments: map[string]*VisitorVGCacheItem{},
+			Assignments: map[string]*VisitorCache{},
 		},
 	}
 
 	var err error
 
-	go func(c chan (*AssignmentResult)) {
+	go func(c chan (*assignmentResult)) {
 		newAssignments, err := getCacheHandler(environmentID, visitorID)
-		c <- &AssignmentResult{
+		c <- &assignmentResult{
 			result:      newAssignments,
 			visitorType: "standard",
 			err:         err,
 		}
 	}(cacheChan)
 
-	go func(c chan (*AssignmentResult)) {
+	go func(c chan (*assignmentResult)) {
 		var newAssignmentsAnonymous *VisitorAssignments
 		var err error
 		if enableReconciliation {
 			newAssignmentsAnonymous, err = getCacheHandler(environmentID, anonymousID)
 		}
-		c <- &AssignmentResult{
+		c <- &assignmentResult{
 			result:      newAssignmentsAnonymous,
 			visitorType: "anonymous",
 			err:         err,
 		}
 	}(cacheChan)
 
-	go func(c chan (*AssignmentResult)) {
+	go func(c chan (*assignmentResult)) {
 		var newAssignmentsDG *VisitorAssignments
 		var err error
 		if decisionGroup != "" {
 			newAssignmentsDG, err = getCacheHandler(environmentID, decisionGroup)
 		}
-		c <- &AssignmentResult{
+		c <- &assignmentResult{
 			result:      newAssignmentsDG,
 			visitorType: "decisionGroup",
 			err:         err,
@@ -90,8 +91,8 @@ func getCache(
 	}
 
 	// Assign decision group assignments to visitor
-	if allAssignments.Standard.GetAssignments() != nil {
-		for k, v := range assignmentsDG.GetAssignments() {
+	if allAssignments.Standard.getAssignments() != nil {
+		for k, v := range assignmentsDG.getAssignments() {
 			allAssignments.Standard.Assignments[k] = v
 		}
 	}
@@ -101,8 +102,8 @@ func getCache(
 
 // GetDecision return a decision response from visitor & environment infos
 func GetDecision(
-	visitorInfos VisitorInfo,
-	environmentInfos EnvironmentInfo,
+	visitorInfos Visitor,
+	environmentInfos Environment,
 	options DecisionOptions,
 	handlers DecisionHandlers,
 ) (*decision_response.DecisionResponse, error) {
@@ -124,16 +125,16 @@ func GetDecision(
 	decisionResponse.VisitorId = wrapperspb.String(visitorID)
 	decisionResponse.Campaigns = []*decision_response.Campaign{}
 
-	newVGAssignments := make(map[string]*VisitorVGCacheItem)
-	newVGAssignmentsAnonymous := make(map[string]*VisitorVGCacheItem)
+	newVGAssignments := make(map[string]*VisitorCache)
+	newVGAssignmentsAnonymous := make(map[string]*VisitorCache)
 
 	tracker.TimeTrack("Start compute targetings")
 
 	// 0. Order campaigns by created at
-	campaignsArray := GetCampaignsArray(environmentInfos.Campaigns)
+	campaignsArray := getCampaignsArray(environmentInfos.Campaigns)
 
 	// 1. Get variation group for each campaign that matches visitor context
-	variationGroups := GetCampaignsVG(campaignsArray, visitorID, visitorContext)
+	variationGroups := getCampaignsVG(campaignsArray, visitorID, visitorContext)
 	tracker.TimeTrack("End compute targetings")
 
 	// 2. Get cache variation assignments from cache DB
@@ -154,7 +155,7 @@ func GetDecision(
 	// 2.a Get visitor assignments asynchronously
 
 	// 2.c Run parallel execution
-	allCacheAssignments := &AllVisitorAssignments{}
+	allCacheAssignments := &allVisitorAssignments{}
 	var err error
 	if enableCache {
 		allCacheAssignments, err = getCache(environmentInfos.ID, visitorID, anonymousID, decisionGroup, enableReconciliation, handlers.GetCache)
@@ -170,7 +171,7 @@ func GetDecision(
 	// Handle single assignment clients
 	previousVisVGsAB := []string{}
 	if environmentInfos.SingleAssignment {
-		previousVisVGsAB = getPreviousABVGIds(variationGroups, allCacheAssignments.Standard.GetAssignments())
+		previousVisVGsAB = getPreviousABVGIds(variationGroups, allCacheAssignments.Standard.getAssignments())
 	}
 
 	// Initialize future campaign activations
@@ -202,8 +203,8 @@ func GetDecision(
 		var vid string
 		isNew := false
 		isNewAnonymous := false
-		existingAssignment, ok := allCacheAssignments.Standard.GetAssignment(vg.ID)
-		existingAssignmentAnonymous, okAnonymous := allCacheAssignments.Anonymous.GetAssignment(vg.ID)
+		existingAssignment, ok := allCacheAssignments.Standard.getAssignment(vg.ID)
+		existingAssignmentAnonymous, okAnonymous := allCacheAssignments.Anonymous.getAssignment(vg.ID)
 
 		var existingVariation *Variation
 		var existingAnonymousVariation *Variation
@@ -241,7 +242,7 @@ func GetDecision(
 			isNew = true
 		} else {
 			// Else compute new allocation
-			chosenVariation, err = GetRandomAllocation(visitorID, vg, options.IsCumulativeAlloc)
+			chosenVariation, err = getRandomAllocation(visitorID, vg, options.IsCumulativeAlloc)
 			if err != nil {
 				log.Println(fmt.Sprintf("Error on new allocation : %v", err))
 				if options.CampaignID != "" {
@@ -255,7 +256,7 @@ func GetDecision(
 		}
 
 		if enableBucketAllocation {
-			isInBucket, err := IsVisitorInBucket(visitorID, vg.Campaign)
+			isInBucket, err := isVisitorInBucket(visitorID, vg.Campaign)
 			if err != nil {
 				log.Println(fmt.Sprintf("Error on bucket allocation for campaign %v : %v", vg.Campaign.ID, err))
 			}
@@ -270,7 +271,7 @@ func GetDecision(
 		// tag this vg alloc to be saved
 		alreadyActivated := ok && existingAssignment.Activated
 		if triggerHit && !alreadyActivated || isNew {
-			newVGAssignments[vg.ID] = &VisitorVGCacheItem{
+			newVGAssignments[vg.ID] = &VisitorCache{
 				VariationID: vid,
 				Activated:   triggerHit,
 			}
@@ -281,21 +282,21 @@ func GetDecision(
 		// tag this vg alloc to be saved
 		alreadyActivatedAnonymous := okAnonymous && existingAssignmentAnonymous.Activated
 		if triggerHit && !alreadyActivatedAnonymous || isNewAnonymous {
-			newVGAssignmentsAnonymous[vg.ID] = &VisitorVGCacheItem{
+			newVGAssignmentsAnonymous[vg.ID] = &VisitorCache{
 				VariationID: vid,
 				Activated:   triggerHit,
 			}
 		}
 
 		if triggerHit {
-			visitorIDActivate := anonymousID
-			if enableReconciliation || anonymousID == "" {
-				visitorIDActivate = visitorID
+			anonymousIDActivate := visitorID
+			if enableReconciliation {
+				anonymousIDActivate = anonymousID
 			}
 			cActivations = append(cActivations, &VisitorActivation{
 				EnvironmentID:    envID,
-				VisitorID:        visitorIDActivate,
-				AnonymousID:      anonymousID,
+				VisitorID:        visitorID,
+				AnonymousID:      anonymousIDActivate,
 				VariationGroupID: vg.ID,
 				VariationID:      vid,
 			})
@@ -314,8 +315,12 @@ func GetDecision(
 	}
 
 	now := time.Now()
-	_, _, _, _ = <-utils.RunTaskAsync(func() {
-		if enableCache && len(newVGAssignments) > 0 && handlers.SaveCache != nil {
+	var wg sync.WaitGroup
+
+	if enableCache && len(newVGAssignments) > 0 && handlers.SaveCache != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 			// 4 Persist visitor ID new vg assignments to cache db
 			err := handlers.SaveCache(envID, visitorID, &VisitorAssignments{
 				Timestamp:   now.Unix(),
@@ -324,9 +329,12 @@ func GetDecision(
 			if err != nil {
 				log.Printf("Error occured on cache saving: %v", err)
 			}
-		}
-	}), utils.RunTaskAsync(func() {
-		if enableCache && len(newVGAssignmentsAnonymous) > 0 && handlers.SaveCache != nil {
+		}()
+	}
+	if enableCache && len(newVGAssignmentsAnonymous) > 0 && handlers.SaveCache != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 			// 4 Persist anonymous ID new vg assignments to cache db
 			err := handlers.SaveCache(envID, anonymousID, &VisitorAssignments{
 				Timestamp:   now.Unix(),
@@ -335,9 +343,12 @@ func GetDecision(
 			if err != nil {
 				log.Printf("Error occured on cache saving: %v", err)
 			}
-		}
-	}), utils.RunTaskAsync(func() {
-		if enableCache && decisionGroup != "" && handlers.SaveCache != nil {
+		}()
+	}
+	if enableCache && decisionGroup != "" && handlers.SaveCache != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 			// 5 Persist decision group new vg assignments to cache db
 			err := handlers.SaveCache(envID, decisionGroup, &VisitorAssignments{
 				Timestamp:   now.Unix(),
@@ -346,17 +357,21 @@ func GetDecision(
 			if err != nil {
 				log.Printf("Error occured on cache saving: %v", err)
 			}
-		}
-	}), <-utils.RunTaskAsync(func() {
-		if len(cActivations) > 0 && handlers.ActivateCampaigns != nil {
+		}()
+	}
+	if len(cActivations) > 0 && handlers.ActivateCampaigns != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 			tracker.TimeTrack("Start activating campaigns hit")
 			err := handlers.ActivateCampaigns(cActivations)
 			if err != nil {
 				log.Printf("Error occured on campaign activation: %v", err)
 			}
 			tracker.TimeTrack("End activating campaigns hit")
-		}
-	})
+		}()
+	}
+	wg.Wait()
 
 	return decisionResponse, nil
 }
