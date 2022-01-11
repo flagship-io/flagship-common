@@ -11,8 +11,8 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
-// getCampaignsArray returns the first campaign that matches the campaign ID
-func getCampaignsArray(campaigns map[string]*Campaign) []*Campaign {
+// GetCampaignsArray returns the first campaign that matches the campaign ID
+func GetCampaignsArray(campaigns map[string]*Campaign) []*Campaign {
 	// Use ID array to sort variation groups by ID to force order of iteration
 	cArray := []*Campaign{}
 	cIDs := map[string]bool{}
