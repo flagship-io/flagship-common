@@ -239,17 +239,17 @@ func TestDecisionBucketInNoCache(t *testing.T) {
 }
 
 func TestVisitorShouldNotBeAssignedWhenVariationDeleted(t *testing.T) {
-	vi := VisitorInfo{}
+	vi := Visitor{}
 	vi.ID = "v1"
 	vi.DecisionGroup = "dg"
 	vi.Context = map[string]*structpb.Value{
 		"isVIP": structpb.NewBoolValue(true),
 	}
 
-	ei := EnvironmentInfo{}
+	ei := Environment{}
 	ei.ID = "e123"
 	ei.Campaigns = campaigns
-	for _, vg := range ei.Campaigns["a"].VariationsGroups {
+	for _, vg := range ei.Campaigns["a"].VariationGroups {
 		vg.Campaign = ei.Campaigns["a"]
 	}
 
@@ -264,8 +264,8 @@ func TestVisitorShouldNotBeAssignedWhenVariationDeleted(t *testing.T) {
 	handlers.ActivateCampaigns = mockActivateCampaigns
 
 	// delete variation and check that visitor is not returned
-	campaignVars := ei.Campaigns["a"].VariationsGroups["vga"].Variations
-	ei.Campaigns["a"].VariationsGroups["vga"].Variations = campaignVars[1:]
+	campaignVars := ei.Campaigns["a"].VariationGroups["vga"].Variations
+	ei.Campaigns["a"].VariationGroups["vga"].Variations = campaignVars[1:]
 	decision, _ := GetDecision(vi, ei, options, handlers)
 
 	assert.Len(t, decision.Campaigns, 0)
