@@ -11,9 +11,9 @@ import (
 )
 
 // targetingMatch returns true if a visitor ID and context match the variationGroup targeting
-func targetingMatch(variationGroup *VariationGroup, visitorID string, context map[string]*protoStruct.Value) (bool, error) {
+func targetingMatch(targetings *targeting.Targeting, visitorID string, context map[string]*protoStruct.Value) (bool, error) {
 	globalMatch := false
-	for _, targetingGroup := range variationGroup.Targetings.GetTargetingGroups() {
+	for _, targetingGroup := range targetings.GetTargetingGroups() {
 		matchGroup := len(targetingGroup.GetTargetings()) > 0
 		for _, targeting := range targetingGroup.GetTargetings() {
 			v, ok := context[targeting.GetKey().GetValue()]
