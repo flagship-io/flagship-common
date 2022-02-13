@@ -201,8 +201,6 @@ func GetDecision(
 		}
 
 		var vid string
-		isNew := false
-		isNewAnonymous := false
 		existingAssignment, ok := allCacheAssignments.Standard.getAssignment(vg.ID)
 		existingAssignmentAnonymous, okAnonymous := allCacheAssignments.Anonymous.getAssignment(vg.ID)
 
@@ -239,7 +237,6 @@ func GetDecision(
 			vid = existingAssignmentAnonymous.VariationID
 			chosenVariation = existingAnonymousVariation
 			enableBucketAllocation = false
-			isNew = true
 		} else {
 			// Else compute new allocation
 			chosenVariation, err = getRandomAllocation(visitorID, vg, options.IsCumulativeAlloc)
@@ -251,8 +248,6 @@ func GetDecision(
 				continue
 			}
 			vid = chosenVariation.ID
-			isNew = true
-			isNewAnonymous = true
 		}
 
 		if enableBucketAllocation {
@@ -270,7 +265,7 @@ func GetDecision(
 		// or if campaign activation not saved and should be
 		// tag this vg alloc to be saved
 		alreadyActivated := ok && existingAssignment.Activated
-		if triggerHit && !alreadyActivated || isNew {
+		if triggerHit && !alreadyActivated {
 			newVGAssignments[vg.ID] = &VisitorCache{
 				VariationID: vid,
 				Activated:   triggerHit,
@@ -281,7 +276,7 @@ func GetDecision(
 		// or if campaign activation not saved and should be
 		// tag this vg alloc to be saved
 		alreadyActivatedAnonymous := okAnonymous && existingAssignmentAnonymous.Activated
-		if triggerHit && !alreadyActivatedAnonymous || isNewAnonymous {
+		if triggerHit && !alreadyActivatedAnonymous {
 			newVGAssignmentsAnonymous[vg.ID] = &VisitorCache{
 				VariationID: vid,
 				Activated:   triggerHit,
