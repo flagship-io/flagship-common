@@ -131,7 +131,7 @@ func GetDecision(
 	tracker.TimeTrack("Start compute targetings")
 
 	// 0. Order campaigns by created at
-	campaignsArray := GetCampaignsArray(environmentInfos.Campaigns)
+	campaignsArray := deduplicateCampaigns(environmentInfos.Campaigns)
 
 	// 1. Get variation group for each campaign that matches visitor context
 	variationGroups := getCampaignsVG(campaignsArray, visitorID, visitorContext)

@@ -12,12 +12,12 @@ import (
 
 var mu = sync.Mutex{}
 
-var campaigns = map[string]*Campaign{
-	"a": {
+var campaigns = []*Campaign{
+	{
 		ID:           "a1",
 		BucketRanges: [][]float64{{0., 100.}},
-		VariationGroups: map[string]*VariationGroup{
-			"vga": {
+		VariationGroups: []*VariationGroup{
+			{
 				ID:         "vga",
 				Targetings: createBoolTargeting(),
 				Variations: []*Variation{
@@ -40,11 +40,11 @@ var campaigns = map[string]*Campaign{
 			},
 		},
 	},
-	"b": {
+	{
 		ID:           "a2",
 		BucketRanges: [][]float64{{20., 30.}},
-		VariationGroups: map[string]*VariationGroup{
-			"vgb": {
+		VariationGroups: []*VariationGroup{
+			{
 				ID:         "vgb",
 				Targetings: createBoolTargeting(),
 				Variations: []*Variation{
@@ -150,8 +150,8 @@ func TestDecisionCache(t *testing.T) {
 	ei := Environment{}
 	ei.ID = "e123"
 	ei.Campaigns = campaigns
-	for _, vg := range ei.Campaigns["a"].VariationGroups {
-		vg.Campaign = ei.Campaigns["a"]
+	for _, vg := range ei.Campaigns[0].VariationGroups {
+		vg.Campaign = ei.Campaigns[0]
 	}
 
 	options := DecisionOptions{
@@ -172,8 +172,8 @@ func TestDecisionCache(t *testing.T) {
 	assert.Equal(t, decision.Campaigns[0].Variation.Id.Value, "vgav2")
 
 	// change the allocation so that visitor should change variation if the cache is disabled
-	ei.Campaigns["a"].VariationGroups["vga"].Variations[0].Allocation = 90
-	ei.Campaigns["a"].VariationGroups["vga"].Variations[1].Allocation = 10
+	ei.Campaigns[0].VariationGroups[0].Variations[0].Allocation = 90
+	ei.Campaigns[0].VariationGroups[0].Variations[1].Allocation = 10
 
 	decision, err = GetDecision(vi, ei, options, handlers)
 
@@ -183,8 +183,8 @@ func TestDecisionCache(t *testing.T) {
 	assert.Equal(t, decision.Campaigns[0].Variation.Id.Value, "vgav1")
 
 	// Reset the allocations
-	ei.Campaigns["a"].VariationGroups["vga"].Variations[0].Allocation = 50
-	ei.Campaigns["a"].VariationGroups["vga"].Variations[1].Allocation = 50
+	ei.Campaigns[0].VariationGroups[0].Variations[0].Allocation = 50
+	ei.Campaigns[0].VariationGroups[0].Variations[1].Allocation = 50
 
 	// Set "real" local cache to persist visitor allocation
 	handlers.GetCache = localGetCache
@@ -196,8 +196,8 @@ func TestDecisionCache(t *testing.T) {
 	assert.Equal(t, decision.Campaigns[0].Variation.Id.Value, "vgav2")
 
 	// change the allocation so that visitor should change variation if the cache is disabled
-	ei.Campaigns["a"].VariationGroups["vga"].Variations[0].Allocation = 90
-	ei.Campaigns["a"].VariationGroups["vga"].Variations[1].Allocation = 10
+	ei.Campaigns[0].VariationGroups[0].Variations[0].Allocation = 90
+	ei.Campaigns[0].VariationGroups[0].Variations[1].Allocation = 10
 
 	decision, _ = GetDecision(vi, ei, options, handlers)
 
@@ -216,11 +216,11 @@ func TestDecisionBucketInNoCache(t *testing.T) {
 	ei := Environment{}
 	ei.ID = "e123"
 	ei.Campaigns = campaigns
-	for _, vg := range ei.Campaigns["a"].VariationGroups {
-		vg.Campaign = ei.Campaigns["a"]
+	for _, vg := range ei.Campaigns[0].VariationGroups {
+		vg.Campaign = ei.Campaigns[0]
 	}
-	for _, vg := range ei.Campaigns["b"].VariationGroups {
-		vg.Campaign = ei.Campaigns["b"]
+	for _, vg := range ei.Campaigns[1].VariationGroups {
+		vg.Campaign = ei.Campaigns[1]
 	}
 
 	options := DecisionOptions{}

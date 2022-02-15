@@ -3,7 +3,6 @@ package decision
 import (
 	"fmt"
 	"log"
-	"sort"
 
 	"github.com/flagship-io/flagship-proto/decision_response"
 	protoStruct "github.com/golang/protobuf/ptypes/struct"
@@ -11,8 +10,8 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
-// GetCampaignsArray returns the first campaign that matches the campaign ID
-func GetCampaignsArray(campaigns map[string]*Campaign) []*Campaign {
+// deduplicateCampaigns returns the first campaign that matches the campaign ID
+func deduplicateCampaigns(campaigns []*Campaign) []*Campaign {
 	// Use ID array to sort variation groups by ID to force order of iteration
 	cArray := []*Campaign{}
 	cIDs := map[string]bool{}
@@ -23,21 +22,13 @@ func GetCampaignsArray(campaigns map[string]*Campaign) []*Campaign {
 		cIDs[c.ID] = true
 
 	}
-	sort.Sort(byCreatedAtCampaigns(cArray))
 	return cArray
 }
 
 // getVariationGroup returns the first variationGroup that matches the visitorId and context
-func getVariationGroup(variationGroups map[string]*VariationGroup, visitorID string, context map[string]*protoStruct.Value) *VariationGroup {
-	// Use ID array to sort variation groups by ID to force order of iteration
-	vgArray := []*VariationGroup{}
-	for _, vg := range variationGroups {
-		vgArray = append(vgArray, vg)
-	}
-	sort.Sort(byCreatedAtVG(vgArray))
-
-	for _, variationGroup := range vgArray {
-		match, err := targetingMatch(variationGroup, visitorID, context)
+func getVariationGroup(variationGroups []*VariationGroup, visitorID string, context map[string]*protoStruct.Value) *VariationGroup {
+	for _, variationGroup := range variationGroups {
+		match, err := targetingMatch(variationGroup.Targetings, visitorID, context)
 		if err != nil {
 			log.Println(fmt.Sprintf("Targeting match error variationGroupId %s, user %s: %s", variationGroup.ID, visitorID, err))
 		}

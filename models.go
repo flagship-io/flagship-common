@@ -46,7 +46,7 @@ type Visitor struct {
 
 type Environment struct {
 	ID                string
-	Campaigns         map[string]*Campaign
+	Campaigns         []*Campaign
 	IsPanic           bool
 	SingleAssignment  bool
 	UseReconciliation bool
@@ -80,14 +80,11 @@ type DecisionHandlers struct {
 type Campaign struct {
 	ID              string
 	Slug            *string
-	VariationGroups map[string]*VariationGroup
+	VariationGroups []*VariationGroup
 	Type            string
 	CreatedAt       time.Time
 	BucketRanges    [][]float64
 }
-
-type byCreatedAtCampaigns []*Campaign
-type byCreatedAtVG []*VariationGroup
 
 // GetAssignments returns all the assigments
 func (va *VisitorAssignments) getAssignments() map[string]*VisitorCache {
@@ -106,24 +103,4 @@ func (va *VisitorAssignments) getAssignment(vgID string) (*VisitorCache, bool) {
 
 	existing, ok := va.Assignments[vgID]
 	return existing, ok
-}
-
-func (s byCreatedAtCampaigns) Len() int {
-	return len(s)
-}
-func (s byCreatedAtCampaigns) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
-}
-func (s byCreatedAtCampaigns) Less(i, j int) bool {
-	return s[i].CreatedAt.After(s[j].CreatedAt)
-}
-
-func (s byCreatedAtVG) Len() int {
-	return len(s)
-}
-func (s byCreatedAtVG) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
-}
-func (s byCreatedAtVG) Less(i, j int) bool {
-	return s[i].CreatedAt.Before(s[j].CreatedAt)
 }

@@ -224,49 +224,46 @@ func TestContextListStringTargeting(t *testing.T) {
 }
 
 func TestComplexTargeting(t *testing.T) {
-	vgTest := &VariationGroup{
-		ID: "test-vg",
-		Targetings: &targeting.Targeting{
-			TargetingGroups: []*targeting.Targeting_TargetingGroup{
-				&targeting.Targeting_TargetingGroup{
-					Targetings: []*targeting.Targeting_InnerTargeting{
-						&targeting.Targeting_InnerTargeting{
-							Operator: targeting.Targeting_EQUALS,
-							Key:      &wrapperspb.StringValue{Value: "featureType"},
-							Value: &structpb.Value{
-								Kind: &structpb.Value_StringValue{
-									StringValue: "deployment",
-								},
+	targetingsTest := &targeting.Targeting{
+		TargetingGroups: []*targeting.Targeting_TargetingGroup{
+			&targeting.Targeting_TargetingGroup{
+				Targetings: []*targeting.Targeting_InnerTargeting{
+					&targeting.Targeting_InnerTargeting{
+						Operator: targeting.Targeting_EQUALS,
+						Key:      &wrapperspb.StringValue{Value: "featureType"},
+						Value: &structpb.Value{
+							Kind: &structpb.Value_StringValue{
+								StringValue: "deployment",
 							},
-						}, &targeting.Targeting_InnerTargeting{
-							Operator: targeting.Targeting_EQUALS,
-							Key:      &wrapperspb.StringValue{Value: "accountName"},
-							Value: &structpb.Value{
-								Kind: &structpb.Value_StringValue{
-									StringValue: "Flagship Demo",
-								},
+						},
+					}, &targeting.Targeting_InnerTargeting{
+						Operator: targeting.Targeting_EQUALS,
+						Key:      &wrapperspb.StringValue{Value: "accountName"},
+						Value: &structpb.Value{
+							Kind: &structpb.Value_StringValue{
+								StringValue: "Flagship Demo",
 							},
-						}, &targeting.Targeting_InnerTargeting{
-							Operator: targeting.Targeting_CONTAINS,
-							Key:      &wrapperspb.StringValue{Value: "fs_users"},
-							Value: &structpb.Value{
-								Kind: &structpb.Value_StringValue{
-									StringValue: "@abtasty.com",
-								},
+						},
+					}, &targeting.Targeting_InnerTargeting{
+						Operator: targeting.Targeting_CONTAINS,
+						Key:      &wrapperspb.StringValue{Value: "fs_users"},
+						Value: &structpb.Value{
+							Kind: &structpb.Value_StringValue{
+								StringValue: "@abtasty.com",
 							},
 						},
 					},
 				},
+			},
 
-				&targeting.Targeting_TargetingGroup{
-					Targetings: []*targeting.Targeting_InnerTargeting{
-						&targeting.Targeting_InnerTargeting{
-							Operator: targeting.Targeting_EQUALS,
-							Key:      &wrapperspb.StringValue{Value: "isVIP"},
-							Value: &structpb.Value{
-								Kind: &structpb.Value_BoolValue{
-									BoolValue: true,
-								},
+			&targeting.Targeting_TargetingGroup{
+				Targetings: []*targeting.Targeting_InnerTargeting{
+					&targeting.Targeting_InnerTargeting{
+						Operator: targeting.Targeting_EQUALS,
+						Key:      &wrapperspb.StringValue{Value: "isVIP"},
+						Value: &structpb.Value{
+							Kind: &structpb.Value_BoolValue{
+								BoolValue: true,
 							},
 						},
 					},
@@ -286,7 +283,7 @@ func TestComplexTargeting(t *testing.T) {
 			StringValue: "deployment",
 		},
 	}
-	test, err := targetingMatch(vgTest, "test@abtasty.com", context)
+	test, err := targetingMatch(targetingsTest, "test@abtasty.com", context)
 	assert.Nil(t, err)
 	assert.True(t, test)
 
@@ -295,7 +292,7 @@ func TestComplexTargeting(t *testing.T) {
 			StringValue: "ab",
 		},
 	}
-	test, err = targetingMatch(vgTest, "test@abtasty.com", context)
+	test, err = targetingMatch(targetingsTest, "test@abtasty.com", context)
 	assert.Nil(t, err)
 	assert.False(t, test)
 
@@ -304,7 +301,7 @@ func TestComplexTargeting(t *testing.T) {
 			BoolValue: true,
 		},
 	}
-	test, err = targetingMatch(vgTest, "test@abtasty.com", context)
+	test, err = targetingMatch(targetingsTest, "test@abtasty.com", context)
 	assert.Nil(t, err)
 	assert.True(t, test)
 }
