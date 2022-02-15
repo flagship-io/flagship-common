@@ -249,8 +249,8 @@ func TestVisitorShouldNotBeAssignedWhenVariationDeleted(t *testing.T) {
 	ei := Environment{}
 	ei.ID = "e123"
 	ei.Campaigns = campaigns
-	for _, vg := range ei.Campaigns["a"].VariationGroups {
-		vg.Campaign = ei.Campaigns["a"]
+	for _, vg := range ei.Campaigns[0].VariationGroups {
+		vg.Campaign = ei.Campaigns[0]
 	}
 
 	options := DecisionOptions{
@@ -264,8 +264,8 @@ func TestVisitorShouldNotBeAssignedWhenVariationDeleted(t *testing.T) {
 	handlers.ActivateCampaigns = mockActivateCampaigns
 
 	// delete variation and check that visitor is not returned
-	campaignVars := ei.Campaigns["a"].VariationGroups["vga"].Variations
-	ei.Campaigns["a"].VariationGroups["vga"].Variations = campaignVars[1:]
+	campaignVars := ei.Campaigns[0].VariationGroups[0].Variations
+	ei.Campaigns[0].VariationGroups[0].Variations = campaignVars[1:]
 	decision, _ := GetDecision(vi, ei, options, handlers)
 
 	assert.Len(t, decision.Campaigns, 0)
