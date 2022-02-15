@@ -6,10 +6,8 @@ import (
 	"github.com/spaolacci/murmur3"
 )
 
-var hash = murmur3.New32()
-
 func genHashFloat(visitorID string, vgID string) (float32, error) {
-	hash.Reset()
+	hash := murmur3.New32()
 	_, err := hash.Write([]byte(vgID + visitorID))
 
 	if err != nil {
