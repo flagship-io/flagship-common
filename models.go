@@ -3,9 +3,9 @@ package decision
 import (
 	"time"
 
+	"github.com/flagship-io/flagship-common/internal/targeting"
 	"github.com/flagship-io/flagship-proto/decision_response"
-	"github.com/flagship-io/flagship-proto/targeting"
-	"google.golang.org/protobuf/types/known/structpb"
+	targetingProto "github.com/flagship-io/flagship-proto/targeting"
 )
 
 // VariationInfo stores the variation information for decision making
@@ -21,7 +21,7 @@ type VariationGroup struct {
 	ID         string
 	Campaign   *Campaign
 	CreatedAt  time.Time
-	Targetings *targeting.Targeting
+	Targetings *targetingProto.Targeting
 	Variations []*Variation
 }
 
@@ -41,7 +41,7 @@ type Visitor struct {
 	ID            string
 	AnonymousID   string
 	DecisionGroup string
-	Context       map[string]*structpb.Value
+	Context       targeting.Context
 }
 
 type Environment struct {

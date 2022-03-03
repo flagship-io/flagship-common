@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/flagship-io/flagship-common/internal/targeting"
 	"github.com/flagship-io/flagship-proto/decision_response"
-	protoStruct "github.com/golang/protobuf/ptypes/struct"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -26,7 +26,7 @@ func deduplicateCampaigns(campaigns []*Campaign) []*Campaign {
 }
 
 // getVariationGroup returns the first variationGroup that matches the visitorId and context
-func getVariationGroup(variationGroups []*VariationGroup, visitorID string, context map[string]*protoStruct.Value) *VariationGroup {
+func getVariationGroup(variationGroups []*VariationGroup, visitorID string, context targeting.Context) *VariationGroup {
 	for _, variationGroup := range variationGroups {
 		match, err := targetingMatch(variationGroup.Targetings, visitorID, context)
 		if err != nil {
@@ -40,7 +40,7 @@ func getVariationGroup(variationGroups []*VariationGroup, visitorID string, cont
 }
 
 // getCampaignsVG returns the variation groups that target visitor
-func getCampaignsVG(campaigns []*Campaign, visitorID string, context map[string]*structpb.Value) []*VariationGroup {
+func getCampaignsVG(campaigns []*Campaign, visitorID string, context targeting.Context) []*VariationGroup {
 	campaignVG := []*VariationGroup{}
 	existingCampaignVG := make(map[string]bool)
 	for _, campaign := range campaigns {

@@ -5,6 +5,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/flagship-io/flagship-common/internal/targeting"
 	"github.com/flagship-io/flagship-proto/decision_response"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -143,8 +144,10 @@ func TestDecisionCache(t *testing.T) {
 	vi := Visitor{}
 	vi.ID = "v1"
 	vi.DecisionGroup = "dg"
-	vi.Context = map[string]*structpb.Value{
-		"isVIP": structpb.NewBoolValue(true),
+	vi.Context = targeting.Context{
+		Rows: targeting.ContextRows{
+			"isVIP": structpb.NewBoolValue(true),
+		},
 	}
 
 	ei := Environment{}
@@ -208,8 +211,10 @@ func TestDecisionCache(t *testing.T) {
 func TestDecisionBucketInNoCache(t *testing.T) {
 	vi := Visitor{}
 	vi.ID = "v1"
-	vi.Context = map[string]*structpb.Value{
-		"isVIP": structpb.NewBoolValue(true),
+	vi.Context = targeting.Context{
+		Rows: targeting.ContextRows{
+			"isVIP": structpb.NewBoolValue(true),
+		},
 	}
 	vi.DecisionGroup = "decision"
 
@@ -242,8 +247,10 @@ func TestVisitorShouldNotBeAssignedWhenVariationDeleted(t *testing.T) {
 	vi := Visitor{}
 	vi.ID = "v1"
 	vi.DecisionGroup = "dg"
-	vi.Context = map[string]*structpb.Value{
-		"isVIP": structpb.NewBoolValue(true),
+	vi.Context = targeting.Context{
+		Rows: targeting.ContextRows{
+			"isVIP": structpb.NewBoolValue(true),
+		},
 	}
 
 	ei := Environment{}
