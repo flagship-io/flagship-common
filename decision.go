@@ -281,7 +281,7 @@ func GetDecision(
 		// or if campaign activation not saved and should be
 		// tag this vg alloc to be saved
 		alreadyActivatedAnonymous := okAnonymous && existingAssignmentAnonymous.Activated
-		if triggerHit && !alreadyActivatedAnonymous || isNewAnonymous {
+		if enableReconciliation && (triggerHit && !alreadyActivatedAnonymous || isNewAnonymous) {
 			newVGAssignmentsAnonymous[vg.ID] = &VisitorCache{
 				VariationID: vid,
 				Activated:   triggerHit,
