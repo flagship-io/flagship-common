@@ -2,7 +2,6 @@ package decision
 
 import (
 	"errors"
-	"log"
 	"math/rand"
 	"strconv"
 	"testing"
@@ -16,7 +15,7 @@ func testVariationGroupAlloc(vg VariationGroup, t *testing.T, isCumulativeAlloc 
 		vAlloc, err := getRandomAllocation(strconv.Itoa(rand.Int()), &vg, isCumulativeAlloc)
 
 		if err != nil {
-			log.Println(err.Error())
+			t.Errorf("error when getting alloc: %v", err)
 			return
 		}
 
@@ -155,7 +154,7 @@ func TestVariationAllocation(t *testing.T) {
 		}
 	}
 	errRatio := float64(len(allocErrors)) / float64(nbTrials)
-	log.Printf("errRatio: %f", errRatio)
+	t.Logf("errRatio: %f", errRatio)
 	isRatioCorrect := 0.5-errRatio < 0.05
 	assert.EqualValues(t, errors.New("Visitor untracked"), allocErrors[0])
 	assert.True(t, isRatioCorrect)

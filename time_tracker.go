@@ -1,7 +1,6 @@
 package decision
 
 import (
-	"log"
 	"time"
 )
 
@@ -17,5 +16,5 @@ func (tracker *Tracker) TimeTrack(name string) {
 	}
 
 	elapsed := time.Since(tracker.StartTime)
-	log.Printf("[PERFORMANCE] %s : %d ms since start", name, elapsed.Milliseconds())
+	logger.Debugf("[PERFORMANCE] %s: %d ms since start", name, elapsed.Milliseconds())
 }
