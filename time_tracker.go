@@ -16,5 +16,5 @@ func (tracker *Tracker) TimeTrack(name string) {
 	}
 
 	elapsed := time.Since(tracker.StartTime)
-	logger.Debugf("[PERFORMANCE] %s: %d ms since start", name, elapsed.Milliseconds())
+	logger.Logf(DebugLevel, "[PERFORMANCE] %s: %d ms since start", name, elapsed.Milliseconds())
 }

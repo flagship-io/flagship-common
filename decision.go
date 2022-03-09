@@ -41,7 +41,7 @@ func getCache(
 	var nbRoutines = 1
 
 	go func(c chan (*assignmentResult)) {
-		logger.Infof("getting assignment cache for visitor ID: %s", visitorID)
+		logger.Logf(InfoLevel, "getting assignment cache for visitor ID: %s", visitorID)
 		newAssignments, err := getCacheHandler(environmentID, visitorID)
 		c <- &assignmentResult{
 			result:      newAssignments,
@@ -53,7 +53,7 @@ func getCache(
 	if enableReconciliation {
 		nbRoutines++
 		go func(c chan (*assignmentResult)) {
-			logger.Infof("getting assignment cache for anonymous ID: %s", anonymousID)
+			logger.Logf(InfoLevel, "getting assignment cache for anonymous ID: %s", anonymousID)
 			newAssignmentsAnonymous, err := getCacheHandler(environmentID, anonymousID)
 			c <- &assignmentResult{
 				result:      newAssignmentsAnonymous,
@@ -66,7 +66,7 @@ func getCache(
 	if decisionGroup != "" {
 		nbRoutines++
 		go func(c chan (*assignmentResult)) {
-			logger.Infof("getting assignment cache for decision group: %s", decisionGroup)
+			logger.Logf(InfoLevel, "getting assignment cache for decision group: %s", decisionGroup)
 			newAssignmentsDG, err := getCacheHandler(environmentID, decisionGroup)
 			c <- &assignmentResult{
 				result:      newAssignmentsDG,
@@ -131,11 +131,11 @@ func GetDecision(
 	tracker.TimeTrack("Start compute targetings")
 
 	// 0. Deduplicate campaigns with the same ID
-	logger.Info("deduplicating campaigns by ID")
+	logger.Logf(InfoLevel, "deduplicating campaigns by ID")
 	campaignsArray := deduplicateCampaigns(environmentInfos.Campaigns)
 
 	// 1. Get variation group for each campaign that matches visitor context
-	logger.Info("getting variation groups that match visitor ID and context")
+	logger.Logf(InfoLevel, "getting variation groups that match visitor ID and context")
 	variationGroups := getCampaignsVG(campaignsArray, visitorID, visitorContext)
 	tracker.TimeTrack("End compute targetings")
 
@@ -157,13 +157,13 @@ func GetDecision(
 	var err error
 	if enableCache {
 		tracker.TimeTrack("Start find existing vID in Cache DB")
-		logger.Info("loading assignments cache from DB")
+		logger.Logf(InfoLevel, "loading assignments cache from DB")
 		allCacheAssignments, err = getCache(environmentInfos.ID, visitorID, anonymousID, decisionGroup, enableReconciliation, handlers.GetCache)
 		tracker.TimeTrack("End find existing vID in Cache DB")
 	}
 
 	if err != nil {
-		logger.Errorf("error occured when getting cached assignments: %v", err)
+		logger.Logf(ErrorLevel, "error occured when getting cached assignments: %v", err)
 		return decisionResponse, nil
 	}
 
@@ -218,7 +218,7 @@ func GetDecision(
 			}
 
 			if existingVariation == nil && existingAnonymousVariation == nil {
-				logger.Debugf("visitor ID %s was already assigned to deleted variation ID %s", visitorID, existingAssignment.VariationID)
+				logger.Logf(DebugLevel, "visitor ID %s was already assigned to deleted variation ID %s", visitorID, existingAssignment.VariationID)
 				// Variation has been deleted
 				continue
 			}
@@ -231,29 +231,29 @@ func GetDecision(
 
 		// If already has variation && assigned variation ID  exist, visitor should not be re-assigned
 		if ok && existingVariation != nil {
-			logger.Debugf("visitor ID %s already assigned to variation ID %s", visitorID, existingVariation.ID)
+			logger.Logf(DebugLevel, "visitor ID %s already assigned to variation ID %s", visitorID, existingVariation.ID)
 			vid = existingAssignment.VariationID
 			chosenVariation = existingVariation
 			enableBucketAllocation = false
 		} else if enableReconciliation && okAnonymous && existingAnonymousVariation != nil {
 			// If reconciliation is on, find anonymous variation as set vid to that variation ID
-			logger.Debugf("anonymous ID %s already assigned to variation ID %s", anonymousID, existingVariation.ID)
+			logger.Logf(DebugLevel, "anonymous ID %s already assigned to variation ID %s", anonymousID, existingVariation.ID)
 			vid = existingAssignmentAnonymous.VariationID
 			chosenVariation = existingAnonymousVariation
 			enableBucketAllocation = false
 			isNew = true
 		} else {
 			// Else compute new allocation
-			logger.Debugf("assigning visitor ID %s to new variation", visitorID)
+			logger.Logf(DebugLevel, "assigning visitor ID %s to new variation", visitorID)
 			chosenVariation, err = getRandomAllocation(visitorID, vg, options.IsCumulativeAlloc)
 			if err != nil {
-				logger.Warnf("Error on new allocation : %v", err)
+				logger.Logf(WarnLevel, "Error on new allocation : %v", err)
 				if options.CampaignID != "" {
 					return decisionResponse, err
 				}
 				continue
 			}
-			logger.Debugf("visitor ID %s got assigned to variation ID %s", visitorID, chosenVariation.ID)
+			logger.Logf(DebugLevel, "visitor ID %s got assigned to variation ID %s", visitorID, chosenVariation.ID)
 			vid = chosenVariation.ID
 			isNew = true
 			isNewAnonymous = true
@@ -262,11 +262,11 @@ func GetDecision(
 		if enableBucketAllocation {
 			isInBucket, err := isVisitorInBucket(visitorID, vg.Campaign)
 			if err != nil {
-				logger.Warnf("Error on bucket allocation for campaign %v: %v", vg.Campaign.ID, err)
+				logger.Logf(WarnLevel, "Error on bucket allocation for campaign %v: %v", vg.Campaign.ID, err)
 			}
 
 			if !isInBucket {
-				logger.Debugf("visitor ID %s does not fall into the campaign's buckets. Skipping campaign", visitorID)
+				logger.Logf(DebugLevel, "visitor ID %s does not fall into the campaign's buckets. Skipping campaign", visitorID)
 				continue
 			}
 		}
@@ -327,13 +327,13 @@ func GetDecision(
 		go func() {
 			defer wg.Done()
 			// 4 Persist visitor ID new vg assignments to cache db
-			logger.Infof("saving assignments cache for visitor ID %s", visitorID)
+			logger.Logf(InfoLevel, "saving assignments cache for visitor ID %s", visitorID)
 			err := handlers.SaveCache(envID, visitorID, &VisitorAssignments{
 				Timestamp:   now.Unix(),
 				Assignments: newVGAssignments,
 			})
 			if err != nil {
-				logger.Errorf("Error occured on cache saving: %v", err)
+				logger.Logf(ErrorLevel, "Error occured on cache saving: %v", err)
 			}
 		}()
 	}
@@ -342,13 +342,13 @@ func GetDecision(
 		go func() {
 			defer wg.Done()
 			// 4 Persist anonymous ID new vg assignments to cache db
-			logger.Infof("saving assignments cache for anonymous ID %s", anonymousID)
+			logger.Logf(InfoLevel, "saving assignments cache for anonymous ID %s", anonymousID)
 			err := handlers.SaveCache(envID, anonymousID, &VisitorAssignments{
 				Timestamp:   now.Unix(),
 				Assignments: newVGAssignmentsAnonymous,
 			})
 			if err != nil {
-				logger.Errorf("Error occured on cache saving: %v", err)
+				logger.Logf(ErrorLevel, "Error occured on cache saving: %v", err)
 			}
 		}()
 	}
@@ -357,13 +357,13 @@ func GetDecision(
 		go func() {
 			defer wg.Done()
 			// 5 Persist decision group new vg assignments to cache db
-			logger.Infof("saving assignments cache for decision group %s", decisionGroup)
+			logger.Logf(InfoLevel, "saving assignments cache for decision group %s", decisionGroup)
 			err := handlers.SaveCache(envID, decisionGroup, &VisitorAssignments{
 				Timestamp:   now.Unix(),
 				Assignments: newVGAssignments,
 			})
 			if err != nil {
-				logger.Errorf("Error occured on cache saving: %v", err)
+				logger.Logf(ErrorLevel, "Error occured on cache saving: %v", err)
 			}
 		}()
 	}
@@ -372,10 +372,10 @@ func GetDecision(
 		go func() {
 			defer wg.Done()
 			tracker.TimeTrack("Start activating campaigns hit")
-			logger.Infof("activating %d campaigns and variations", len(cActivations))
+			logger.Logf(InfoLevel, "activating %d campaigns and variations", len(cActivations))
 			err := handlers.ActivateCampaigns(cActivations)
 			if err != nil {
-				logger.Errorf("Error occured on campaign activation: %v", err)
+				logger.Logf(ErrorLevel, "Error occured on campaign activation: %v", err)
 			}
 			tracker.TimeTrack("End activating campaigns hit")
 		}()

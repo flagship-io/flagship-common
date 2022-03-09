@@ -27,7 +27,7 @@ func getVariationGroup(variationGroups []*VariationGroup, visitorID string, cont
 	for _, variationGroup := range variationGroups {
 		match, err := targetingMatch(variationGroup.Targetings, visitorID, context)
 		if err != nil {
-			logger.Warnf("Targeting match error variationGroupId %s, user %s: %s", variationGroup.ID, visitorID, err)
+			logger.Logf(WarnLevel, "Targeting match error variationGroupId %s, user %s: %s", variationGroup.ID, visitorID, err)
 		}
 		if match {
 			return variationGroup
@@ -88,7 +88,7 @@ func buildCampaignResponse(vg *VariationGroup, variation *Variation, shouldFillK
 	}
 
 	if shouldFillKeys {
-		logger.Debug("filling non existant keys in variation with null value")
+		logger.Logf(DebugLevel, "filling non existant keys in variation with null value")
 		if variation.Modifications == nil {
 			variation.Modifications = &decision_response.Modifications{}
 		}
