@@ -1,9 +1,6 @@
 package decision
 
 import (
-	"fmt"
-	"log"
-
 	"github.com/flagship-io/flagship-common/targeting"
 	"github.com/flagship-io/flagship-proto/decision_response"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -30,7 +27,7 @@ func getVariationGroup(variationGroups []*VariationGroup, visitorID string, cont
 	for _, variationGroup := range variationGroups {
 		match, err := targetingMatch(variationGroup.Targetings, visitorID, context)
 		if err != nil {
-			log.Println(fmt.Sprintf("Targeting match error variationGroupId %s, user %s: %s", variationGroup.ID, visitorID, err))
+			logger.Logf(WarnLevel, "targeting match error variationGroupId %s, user %s: %s", variationGroup.ID, visitorID, err)
 		}
 		if match {
 			return variationGroup
@@ -91,6 +88,7 @@ func buildCampaignResponse(vg *VariationGroup, variation *Variation, shouldFillK
 	}
 
 	if shouldFillKeys {
+		logger.Logf(DebugLevel, "filling non existant keys in variation with null value")
 		if variation.Modifications == nil {
 			variation.Modifications = &decision_response.Modifications{}
 		}
