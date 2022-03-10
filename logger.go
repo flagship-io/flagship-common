@@ -5,7 +5,7 @@ import (
 )
 
 var logger Logger = &DefaultLogger{
-	Logger: logrus.New(),
+	Entry: logrus.New().WithField("component", "common"),
 }
 
 // Level type is an iota that represents log level
@@ -43,6 +43,11 @@ func SetLogger(l Logger) {
 	logger = l
 }
 
+// SetLevel sets the level of the current logger
+func SetLevel(level Level) {
+	logger.SetLevel(level)
+}
+
 var lvlLogrusMap = map[Level]logrus.Level{
 	PanicLevel: logrus.PanicLevel,
 	FatalLevel: logrus.FatalLevel,
@@ -55,12 +60,12 @@ var lvlLogrusMap = map[Level]logrus.Level{
 
 // DefaultLogger is a logrus based logger
 type DefaultLogger struct {
-	*logrus.Logger
+	*logrus.Entry
 }
 
 // Logf logs a formatted string and specify its level
 func (l *DefaultLogger) Logf(level Level, format string, args ...interface{}) {
-	l.Logger.Logf(lvlLogrusMap[level], format, args...)
+	l.Entry.Logf(lvlLogrusMap[level], format, args...)
 }
 
 // SetLevel specifies the minimum log level to log to the logging output
