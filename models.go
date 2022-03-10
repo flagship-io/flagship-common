@@ -86,6 +86,20 @@ type Campaign struct {
 	BucketRanges    [][]float64
 }
 
+func (c *Campaign) HasIntegrationProviderTargeting() bool {
+	for _, vg := range c.VariationGroups {
+		for _, tg := range vg.Targetings.TargetingGroups {
+			for _, t := range tg.Targetings {
+				if t.Provider != nil && t.Provider.GetValue() != "" {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
+}
+
 // GetAssignments returns all the assigments
 func (va *VisitorAssignments) getAssignments() map[string]*VisitorCache {
 	if va == nil {
