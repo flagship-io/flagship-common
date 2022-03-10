@@ -237,7 +237,7 @@ func GetDecision(
 			enableBucketAllocation = false
 		} else if enableReconciliation && okAnonymous && existingAnonymousVariation != nil {
 			// If reconciliation is on, find anonymous variation as set vid to that variation ID
-			logger.Logf(DebugLevel, "anonymous ID %s already assigned to variation ID %s", anonymousID, existingVariation.ID)
+			logger.Logf(DebugLevel, "anonymous ID %s already assigned to variation ID %s", anonymousID, existingAnonymousVariation.ID)
 			vid = existingAssignmentAnonymous.VariationID
 			chosenVariation = existingAnonymousVariation
 			enableBucketAllocation = false
