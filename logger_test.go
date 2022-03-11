@@ -17,15 +17,15 @@ func TestSetLogger(t *testing.T) {
 
 func TestSetLogLevel(t *testing.T) {
 	l := &DefaultLogger{
-		Logger: logrus.New(),
+		Entry: logrus.New().WithField("component", "common"),
 	}
 	l.SetLevel(InfoLevel)
-	assert.Equal(t, logrus.InfoLevel, l.Level)
+	assert.Equal(t, logrus.InfoLevel, l.Logger.Level)
 }
 
 func TestLogf(t *testing.T) {
 	l := &DefaultLogger{
-		Logger: logrus.New(),
+		Entry: logrus.New().WithField("component", "common"),
 	}
 
 	var b bytes.Buffer
@@ -38,7 +38,6 @@ func TestLogf(t *testing.T) {
 	assert.Equal(t, "", string(ret))
 
 	b.Reset()
-	l.Logger.SetOutput(mockWriter)
 	l.SetLevel(DebugLevel)
 
 	l.Logf(DebugLevel, "test %v", "value")
