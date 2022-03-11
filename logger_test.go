@@ -20,7 +20,7 @@ func TestSetLogLevel(t *testing.T) {
 		Entry: logrus.New().WithField("component", "common"),
 	}
 	l.SetLevel(InfoLevel)
-	assert.Equal(t, logrus.InfoLevel, l.Level)
+	assert.Equal(t, logrus.InfoLevel, l.Logger.Level)
 }
 
 func TestLogf(t *testing.T) {
