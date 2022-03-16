@@ -4,9 +4,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var logger Logger = &DefaultLogger{
-	Entry: logrus.New().WithField("component", "common"),
-}
+var logger Logger = NewDefaultLogger()
 
 // Level type is an iota that represents log level
 type Level uint32
@@ -71,4 +69,12 @@ func (l *DefaultLogger) Logf(level Level, format string, args ...interface{}) {
 // SetLevel specifies the minimum log level to log to the logging output
 func (l *DefaultLogger) SetLevel(level Level) {
 	l.Logger.SetLevel(lvlLogrusMap[level])
+}
+
+func NewDefaultLogger() *DefaultLogger {
+	entry := logrus.New().WithField("component", "common")
+	entry.Logger.SetLevel(logrus.ErrorLevel)
+	return &DefaultLogger{
+		Entry: entry,
+	}
 }
