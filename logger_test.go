@@ -45,3 +45,8 @@ func TestLogf(t *testing.T) {
 	ret = b.Bytes()
 	assert.Contains(t, string(ret), "test value")
 }
+
+func TestNewDefaultLogger(t *testing.T) {
+	l := NewDefaultLogger()
+	assert.Equal(t, logrus.ErrorLevel, l.Logger.Level)
+}
