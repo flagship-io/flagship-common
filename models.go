@@ -51,6 +51,7 @@ type Environment struct {
 	SingleAssignment  bool
 	UseReconciliation bool
 	CacheEnabled      bool
+	HasIntegrations   bool
 }
 
 type DecisionOptions struct {
