@@ -248,9 +248,6 @@ func GetDecision(
 			chosenVariation, err = getRandomAllocation(visitorID, vg, options.IsCumulativeAlloc)
 			if err != nil {
 				logger.Logf(WarnLevel, "error on new allocation : %v", err)
-				if options.CampaignID != "" {
-					return decisionResponse, err
-				}
 				continue
 			}
 			logger.Logf(DebugLevel, "visitor ID %s got assigned to variation ID %s", visitorID, chosenVariation.ID)
