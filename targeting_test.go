@@ -7,7 +7,7 @@ import (
 
 	"github.com/flagship-io/flagship-proto/targeting"
 	protoStruct "github.com/golang/protobuf/ptypes/struct"
-	structpb "github.com/golang/protobuf/ptypes/struct"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -223,12 +223,70 @@ func TestContextListStringTargeting(t *testing.T) {
 	testTargetingContextListString(targeting.Targeting_NOT_CONTAINS, "abc", []string{"abcd", "bcd"}, t, false, false)
 }
 
+// TestEmptyContextTargeting checks all possible empty context targeting
+func TestEmptyContextTargeting(t *testing.T) {
+	_, err := targetingMatchOperatorEmptyContext(targeting.Targeting_CONTAINS, true, nil)
+	assert.NotNil(t, err)
+
+	match, err := targetingMatchOperatorEmptyContext(targeting.Targeting_EXISTS, true, nil)
+	assert.Nil(t, err)
+	assert.False(t, match)
+
+	match, err = targetingMatchOperatorEmptyContext(targeting.Targeting_EXISTS, true, &structpb.Value{})
+	assert.Nil(t, err)
+	assert.True(t, match)
+
+	match, err = targetingMatchOperatorEmptyContext(targeting.Targeting_EXISTS, false, &structpb.Value{})
+	assert.Nil(t, err)
+	assert.False(t, match)
+
+	match, err = targetingMatchOperatorEmptyContext(targeting.Targeting_NOT_EXISTS, true, nil)
+	assert.Nil(t, err)
+	assert.True(t, match)
+
+	match, err = targetingMatchOperatorEmptyContext(targeting.Targeting_NOT_EXISTS, true, &structpb.Value{})
+	assert.Nil(t, err)
+	assert.False(t, match)
+
+	match, err = targetingMatchOperatorEmptyContext(targeting.Targeting_NOT_EXISTS, false, &structpb.Value{})
+	assert.Nil(t, err)
+	assert.True(t, match)
+
+	targetingConf := &targeting.Targeting{
+		TargetingGroups: []*targeting.Targeting_TargetingGroup{
+			{
+				Targetings: []*targeting.Targeting_InnerTargeting{
+					{
+						Operator: targeting.Targeting_NOT_EXISTS,
+						Key:      wrapperspb.String("test"),
+						Value:    structpb.NewBoolValue(true),
+					},
+				},
+			},
+		},
+	}
+	context := map[string]*structpb.Value{}
+	match, err = targetingMatch(targetingConf, "visitor_id", context)
+	assert.Nil(t, err)
+	assert.True(t, match)
+
+	context["test"] = structpb.NewBoolValue(true)
+	match, err = targetingMatch(targetingConf, "visitor_id", context)
+	assert.Nil(t, err)
+	assert.False(t, match)
+
+	targetingConf.TargetingGroups[0].Targetings[0].Operator = targeting.Targeting_EXISTS
+	match, err = targetingMatch(targetingConf, "visitor_id", context)
+	assert.Nil(t, err)
+	assert.True(t, match)
+}
+
 func TestComplexTargeting(t *testing.T) {
 	targetingsTest := &targeting.Targeting{
 		TargetingGroups: []*targeting.Targeting_TargetingGroup{
-			&targeting.Targeting_TargetingGroup{
+			{
 				Targetings: []*targeting.Targeting_InnerTargeting{
-					&targeting.Targeting_InnerTargeting{
+					{
 						Operator: targeting.Targeting_EQUALS,
 						Key:      &wrapperspb.StringValue{Value: "featureType"},
 						Value: &structpb.Value{
@@ -236,7 +294,7 @@ func TestComplexTargeting(t *testing.T) {
 								StringValue: "deployment",
 							},
 						},
-					}, &targeting.Targeting_InnerTargeting{
+					}, {
 						Operator: targeting.Targeting_EQUALS,
 						Key:      &wrapperspb.StringValue{Value: "accountName"},
 						Value: &structpb.Value{
@@ -244,7 +302,7 @@ func TestComplexTargeting(t *testing.T) {
 								StringValue: "Flagship Demo",
 							},
 						},
-					}, &targeting.Targeting_InnerTargeting{
+					}, {
 						Operator: targeting.Targeting_CONTAINS,
 						Key:      &wrapperspb.StringValue{Value: "fs_users"},
 						Value: &structpb.Value{
@@ -256,9 +314,9 @@ func TestComplexTargeting(t *testing.T) {
 				},
 			},
 
-			&targeting.Targeting_TargetingGroup{
+			{
 				Targetings: []*targeting.Targeting_InnerTargeting{
-					&targeting.Targeting_InnerTargeting{
+					{
 						Operator: targeting.Targeting_EQUALS,
 						Key:      &wrapperspb.StringValue{Value: "isVIP"},
 						Value: &structpb.Value{
