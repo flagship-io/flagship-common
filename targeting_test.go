@@ -193,6 +193,68 @@ func TestContextListStringTargeting(t *testing.T) {
 	testTargetingContextListString(targetingProto.Targeting_NOT_CONTAINS, "abc", []string{"abcd", "bcd"}, t, false, false)
 }
 
+// TestEmptyContextTargeting checks all possible empty context targeting
+func TestEmptyContextTargeting(t *testing.T) {
+	_, err := targetingMatchOperatorEmptyContext(targetingProto.Targeting_CONTAINS, true, nil)
+	assert.NotNil(t, err)
+
+	match, err := targetingMatchOperatorEmptyContext(targetingProto.Targeting_EXISTS, true, nil)
+	assert.Nil(t, err)
+	assert.False(t, match)
+
+	match, err = targetingMatchOperatorEmptyContext(targetingProto.Targeting_EXISTS, true, &structpb.Value{})
+	assert.Nil(t, err)
+	assert.True(t, match)
+
+	match, err = targetingMatchOperatorEmptyContext(targetingProto.Targeting_EXISTS, false, &structpb.Value{})
+	assert.Nil(t, err)
+	assert.False(t, match)
+
+	match, err = targetingMatchOperatorEmptyContext(targetingProto.Targeting_NOT_EXISTS, true, nil)
+	assert.Nil(t, err)
+	assert.True(t, match)
+
+	match, err = targetingMatchOperatorEmptyContext(targetingProto.Targeting_NOT_EXISTS, true, &structpb.Value{})
+	assert.Nil(t, err)
+	assert.False(t, match)
+
+	match, err = targetingMatchOperatorEmptyContext(targetingProto.Targeting_NOT_EXISTS, false, &structpb.Value{})
+	assert.Nil(t, err)
+	assert.True(t, match)
+
+	targetingConf := &targetingProto.Targeting{
+		TargetingGroups: []*targetingProto.Targeting_TargetingGroup{
+			{
+				Targetings: []*targetingProto.Targeting_InnerTargeting{
+					{
+						Operator: targetingProto.Targeting_NOT_EXISTS,
+						Key:      wrapperspb.String("test"),
+						Value:    structpb.NewBoolValue(true),
+					},
+				},
+			},
+		},
+	}
+
+	// test context without provider (default behavior)
+	context := &targeting.Context{
+		Standard: targeting.ContextMap{},
+	}
+	match, err = targetingMatch(targetingConf, "visitor_id", context)
+	assert.Nil(t, err)
+	assert.True(t, match)
+
+	context.Standard["test"] = structpb.NewBoolValue(true)
+	match, err = targetingMatch(targetingConf, "visitor_id", context)
+	assert.Nil(t, err)
+	assert.False(t, match)
+
+	targetingConf.TargetingGroups[0].Targetings[0].Operator = targetingProto.Targeting_EXISTS
+	match, err = targetingMatch(targetingConf, "visitor_id", context)
+	assert.Nil(t, err)
+	assert.True(t, match)
+}
+
 func TestComplexTargeting(t *testing.T) {
 	targetingsTest := &targetingProto.Targeting{
 		TargetingGroups: []*targetingProto.Targeting_TargetingGroup{

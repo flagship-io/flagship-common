@@ -1,8 +1,8 @@
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/flagship-io/flagship-proto v0.0.14 h1:Uab2uws3YL6rzbFxJQ0zA5/nRilP7K+Dy9YV4JZNZJA=
-github.com/flagship-io/flagship-proto v0.0.14/go.mod h1:Nv5epf8wbbAEx6sAnjPumFy+YQOClXyXlxZzUMUqidw=
+github.com/flagship-io/flagship-proto v0.0.15 h1:2sK9DWtnTkUEBiGtjLdwhMaaGsXuU+QRmAOhxlwj7bQ=
+github.com/flagship-io/flagship-proto v0.0.15/go.mod h1:Nv5epf8wbbAEx6sAnjPumFy+YQOClXyXlxZzUMUqidw=
 github.com/golang/protobuf v1.5.0/go.mod h1:FsONVRAS9T7sI+LIUmWTfcYkHO4aIWwzhcaSAoJOfIk=
 github.com/golang/protobuf v1.5.2 h1:ROPKBNFfQgOUMifHyP+KYbvpjbdoFNs+aK7DXlji0Tw=
 github.com/golang/protobuf v1.5.2/go.mod h1:XVQd3VNwM+JqD3oG2Ue2ip4fOMUkwXdXDdiuN0vRsmY=
