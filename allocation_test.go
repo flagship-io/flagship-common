@@ -159,7 +159,8 @@ func TestVariationAllocation(t *testing.T) {
 	assert.EqualValues(t, errors.New("Visitor untracked"), allocErrors[0])
 	assert.True(t, isRatioCorrect)
 }
-func TestisVisitorInBucket(t *testing.T) {
+
+func TestIsVisitorInBucket(t *testing.T) {
 	// visitor in bucket 100% should be allowed
 	is, err := isVisitorInBucket("123", &Campaign{
 		ID:           "123",

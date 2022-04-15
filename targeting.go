@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/flagship-io/flagship-proto/targeting"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	protoStruct "github.com/golang/protobuf/ptypes/struct"
 )
@@ -15,9 +16,9 @@ func targetingMatch(targetings *targeting.Targeting, visitorID string, context m
 	globalMatch := false
 	for _, targetingGroup := range targetings.GetTargetingGroups() {
 		matchGroup := len(targetingGroup.GetTargetings()) > 0
-		for _, targeting := range targetingGroup.GetTargetings() {
-			v, ok := context[targeting.GetKey().GetValue()]
-			switch targeting.GetKey().GetValue() {
+		for _, t := range targetingGroup.GetTargetings() {
+			v, ok := context[t.GetKey().GetValue()]
+			switch t.GetKey().GetValue() {
 			case "fs_all_users":
 				return true, nil
 			case "fs_users":
@@ -29,8 +30,8 @@ func targetingMatch(targetings *targeting.Targeting, visitorID string, context m
 				ok = true
 			}
 
-			if ok {
-				matchTargeting, err := targetingMatchOperator(targeting.GetOperator(), targeting.GetValue(), v)
+			if ok || isEmptyContextOperator(t.GetOperator()) {
+				matchTargeting, err := targetingMatchOperator(t.GetOperator(), t.GetValue(), v)
 				if err != nil {
 					return false, err
 				}
@@ -52,6 +53,10 @@ func isANDListOperator(operator targeting.Targeting_TargetingOperator) bool {
 
 func isORListOperator(operator targeting.Targeting_TargetingOperator) bool {
 	return operator == targeting.Targeting_CONTAINS || operator == targeting.Targeting_EQUALS
+}
+
+func isEmptyContextOperator(operator targeting.Targeting_TargetingOperator) bool {
+	return operator == targeting.Targeting_EXISTS || operator == targeting.Targeting_NOT_EXISTS
 }
 
 func targetingMatchOperator(operator targeting.Targeting_TargetingOperator, targetingValue *protoStruct.Value, contextValue *protoStruct.Value) (bool, error) {
@@ -78,6 +83,11 @@ func targetingMatchOperator(operator targeting.Targeting_TargetingOperator, targ
 			}
 		}
 		return match, nil
+	}
+
+	if isEmptyContextOperator(operator) {
+		targetingValueCasted := targetingValue.GetBoolValue()
+		return targetingMatchOperatorEmptyContext(operator, targetingValueCasted, contextValue)
 	}
 
 	// Except for targeting value of type list, check that context and targeting types are equals
@@ -159,7 +169,7 @@ func targetingMatchOperatorNumber(operator targeting.Targeting_TargetingOperator
 	case targeting.Targeting_NOT_EQUALS:
 		return contextValue != targetingValue, nil
 	default:
-		return false, errors.New("Operator not handled")
+		return false, errors.New("operator not handled")
 	}
 }
 
@@ -170,6 +180,17 @@ func targetingMatchOperatorBool(operator targeting.Targeting_TargetingOperator, 
 	case targeting.Targeting_NOT_EQUALS:
 		return contextValue != targetingValue, nil
 	default:
-		return false, errors.New("Operator not handled")
+		return false, errors.New("operator not handled")
+	}
+}
+
+func targetingMatchOperatorEmptyContext(operator targeting.Targeting_TargetingOperator, targetingValue bool, contextValue *structpb.Value) (bool, error) {
+	switch operator {
+	case targeting.Targeting_EXISTS:
+		return contextValue != nil && targetingValue || contextValue == nil && !targetingValue, nil
+	case targeting.Targeting_NOT_EXISTS:
+		return contextValue == nil && targetingValue || contextValue != nil && !targetingValue, nil
+	default:
+		return false, errors.New("operator not handled")
 	}
 }
