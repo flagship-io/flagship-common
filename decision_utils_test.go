@@ -4,36 +4,36 @@ import (
 	"testing"
 	"time"
 
+	"github.com/flagship-io/flagship-common/targeting"
 	"github.com/flagship-io/flagship-proto/decision_response"
-	"github.com/flagship-io/flagship-proto/targeting"
-	protoStruct "github.com/golang/protobuf/ptypes/struct"
+	protoTargeting "github.com/flagship-io/flagship-proto/targeting"
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
-func createNumberTargeting() *targeting.Targeting {
-	targetingGroups := []*targeting.Targeting_TargetingGroup{}
-	targetingGroups = append(targetingGroups, &targeting.Targeting_TargetingGroup{
-		Targetings: []*targeting.Targeting_InnerTargeting{{
-			Operator: targeting.Targeting_EQUALS,
+func createNumberTargeting() *protoTargeting.Targeting {
+	targetingGroups := []*protoTargeting.Targeting_TargetingGroup{}
+	targetingGroups = append(targetingGroups, &protoTargeting.Targeting_TargetingGroup{
+		Targetings: []*protoTargeting.Targeting_InnerTargeting{{
+			Operator: protoTargeting.Targeting_EQUALS,
 			Key:      &wrappers.StringValue{Value: "age"},
 			Value:    structpb.NewNumberValue(30),
 		}},
 	})
-	return &targeting.Targeting{TargetingGroups: targetingGroups}
+	return &protoTargeting.Targeting{TargetingGroups: targetingGroups}
 }
 
-func createBoolTargeting() *targeting.Targeting {
-	targetingGroups := []*targeting.Targeting_TargetingGroup{}
-	targetingGroups = append(targetingGroups, &targeting.Targeting_TargetingGroup{
-		Targetings: []*targeting.Targeting_InnerTargeting{{
-			Operator: targeting.Targeting_EQUALS,
+func createBoolTargeting() *protoTargeting.Targeting {
+	targetingGroups := []*protoTargeting.Targeting_TargetingGroup{}
+	targetingGroups = append(targetingGroups, &protoTargeting.Targeting_TargetingGroup{
+		Targetings: []*protoTargeting.Targeting_InnerTargeting{{
+			Operator: protoTargeting.Targeting_EQUALS,
 			Key:      &wrappers.StringValue{Value: "isVIP"},
 			Value:    structpb.NewBoolValue(true),
 		}},
 	})
-	return &targeting.Targeting{TargetingGroups: targetingGroups}
+	return &protoTargeting.Targeting{TargetingGroups: targetingGroups}
 }
 
 func TestDeduplicateCampaigns(t *testing.T) {
@@ -140,8 +140,10 @@ func TestGetCampaignsVG(t *testing.T) {
 	}
 	vgsNotTargeted := []*VariationGroup{vgNotTargeted}
 
-	context := map[string]*protoStruct.Value{
-		"age": structpb.NewNumberValue(30),
+	context := &targeting.Context{
+		Standard: targeting.ContextMap{
+			"age": structpb.NewNumberValue(30),
+		},
 	}
 	campaignInfos := []*Campaign{
 		{

@@ -3,8 +3,57 @@ package decision
 import (
 	"testing"
 
+	"github.com/flagship-io/flagship-proto/targeting"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
+
+func TestHasIntegrationProviderTargeting(t *testing.T) {
+	c := &Campaign{
+		VariationGroups: []*VariationGroup{
+			{
+				Targetings: &targeting.Targeting{
+					TargetingGroups: []*targeting.Targeting_TargetingGroup{
+						{
+							Targetings: []*targeting.Targeting_InnerTargeting{
+								{
+									Provider: wrapperspb.String("mixpanel"),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	assert.True(t, c.HasIntegrationProviderTargeting())
+
+	c = &Campaign{
+		VariationGroups: []*VariationGroup{
+			{
+				Targetings: &targeting.Targeting{
+					TargetingGroups: []*targeting.Targeting_TargetingGroup{
+						{
+							Targetings: []*targeting.Targeting_InnerTargeting{
+								{
+									Provider: wrapperspb.String(""),
+								},
+							},
+						},
+						{
+							Targetings: []*targeting.Targeting_InnerTargeting{
+								{},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	assert.False(t, c.HasIntegrationProviderTargeting())
+}
 
 func TestGetAssignments(t *testing.T) {
 	var va *VisitorAssignments

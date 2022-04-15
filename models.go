@@ -3,9 +3,9 @@ package decision
 import (
 	"time"
 
+	"github.com/flagship-io/flagship-common/targeting"
 	"github.com/flagship-io/flagship-proto/decision_response"
-	"github.com/flagship-io/flagship-proto/targeting"
-	"google.golang.org/protobuf/types/known/structpb"
+	targetingProto "github.com/flagship-io/flagship-proto/targeting"
 )
 
 // VariationInfo stores the variation information for decision making
@@ -21,7 +21,7 @@ type VariationGroup struct {
 	ID         string
 	Campaign   *Campaign
 	CreatedAt  time.Time
-	Targetings *targeting.Targeting
+	Targetings *targetingProto.Targeting
 	Variations []*Variation
 }
 
@@ -41,7 +41,7 @@ type Visitor struct {
 	ID            string
 	AnonymousID   string
 	DecisionGroup string
-	Context       map[string]*structpb.Value
+	Context       *targeting.Context
 }
 
 type Environment struct {
@@ -84,6 +84,20 @@ type Campaign struct {
 	Type            string
 	CreatedAt       time.Time
 	BucketRanges    [][]float64
+}
+
+func (c *Campaign) HasIntegrationProviderTargeting() bool {
+	for _, vg := range c.VariationGroups {
+		for _, tg := range vg.Targetings.TargetingGroups {
+			for _, t := range tg.Targetings {
+				if t.Provider != nil && t.Provider.GetValue() != "" {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
 }
 
 // GetAssignments returns all the assigments
