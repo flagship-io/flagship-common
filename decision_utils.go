@@ -78,7 +78,7 @@ func getPreviousABVGIds(variationGroups []*VariationGroup, existingVar map[strin
 }
 
 // buildCampaignResponse creates a decision campaign response, filling out empty flag keys for each variation if needed
-func buildCampaignResponse(vg *VariationGroup, variation *Variation, shouldFillKeys bool) *decision_response.Campaign {
+func buildCampaignResponse(vg *VariationGroup, variation *Variation, exposeAllKeys bool) *decision_response.Campaign {
 	campaignResponse := decision_response.Campaign{
 		Id:               wrapperspb.String(vg.Campaign.ID),
 		VariationGroupId: wrapperspb.String(vg.ID),
@@ -87,7 +87,7 @@ func buildCampaignResponse(vg *VariationGroup, variation *Variation, shouldFillK
 		campaignResponse.Slug = wrapperspb.String(*vg.Campaign.Slug)
 	}
 
-	if shouldFillKeys {
+	if exposeAllKeys {
 		logger.Logf(DebugLevel, "filling non existant keys in variation with null value")
 		if variation.Modifications == nil {
 			variation.Modifications = &decision_response.Modifications{}
@@ -104,6 +104,16 @@ func buildCampaignResponse(vg *VariationGroup, variation *Variation, shouldFillK
 					if _, ok := variation.Modifications.Value.Fields[key]; !ok {
 						variation.Modifications.Value.Fields[key] = &structpb.Value{Kind: &structpb.Value_NullValue{}}
 					}
+				}
+			}
+		}
+	} else {
+		if variation.Modifications != nil && variation.Modifications.Value != nil {
+			for key, val := range variation.Modifications.Value.Fields {
+				_, okCast := val.GetKind().(*structpb.Value_NullValue)
+				if okCast {
+					// Remove nil value keys if shouldFillKeys is false
+					delete(variation.Modifications.Value.Fields, key)
 				}
 			}
 		}

@@ -235,4 +235,12 @@ func TestBuildCampaignResponse(t *testing.T) {
 		"number": nil,
 		"bool2":  nil,
 	}, resp.Variation.Modifications.Value.AsMap())
+
+	var2.Modifications.Value.Fields["nil"] = structpb.NewNullValue()
+	resp = buildCampaignResponse(vg, var2, false)
+	assert.NotNil(t, resp)
+	assert.Equal(t, 1, len(resp.Variation.Modifications.Value.Fields))
+	assert.EqualValues(t, map[string]interface{}{
+		"bool2": true,
+	}, resp.Variation.Modifications.Value.AsMap())
 }
