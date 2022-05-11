@@ -108,11 +108,13 @@ func buildCampaignResponse(vg *VariationGroup, variation *Variation, exposeAllKe
 			}
 		}
 	} else {
-		for key, val := range variation.Modifications.Value.Fields {
-			_, okCast := val.GetKind().(*structpb.Value_NullValue)
-			if okCast {
-				// Remove nil value keys if shouldFillKeys is false
-				delete(variation.Modifications.Value.Fields, key)
+		if variation.Modifications != nil && variation.Modifications.Value != nil {
+			for key, val := range variation.Modifications.Value.Fields {
+				_, okCast := val.GetKind().(*structpb.Value_NullValue)
+				if okCast {
+					// Remove nil value keys if shouldFillKeys is false
+					delete(variation.Modifications.Value.Fields, key)
+				}
 			}
 		}
 	}
