@@ -107,6 +107,14 @@ func buildCampaignResponse(vg *VariationGroup, variation *Variation, shouldFillK
 				}
 			}
 		}
+	} else {
+		for key, val := range variation.Modifications.Value.Fields {
+			_, okCast := val.GetKind().(*structpb.Value_NullValue)
+			if okCast {
+				// Remove nil value keys if shouldFillKeys is false
+				delete(variation.Modifications.Value.Fields, key)
+			}
+		}
 	}
 
 	protoModif := &decision_response.Variation{
