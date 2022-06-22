@@ -19,7 +19,8 @@ func targetingMatch(targetings *protoTargeting.Targeting, visitorID string, cont
 			v, ok := context.GetValueByProvider(t.GetKey().GetValue(), t.GetProvider().GetValue())
 			switch t.GetKey().GetValue() {
 			case "fs_all_users":
-				return true, nil
+				// All users targeting will
+				continue
 			case "fs_users":
 				v = structpb.NewStringValue(visitorID)
 				ok = true

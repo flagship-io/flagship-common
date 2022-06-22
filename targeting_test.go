@@ -61,6 +61,45 @@ func testTargetingContextListString(operator targetingProto.Targeting_TargetingO
 	}
 }
 
+func TestAllUsersTargeting(t *testing.T) {
+	targetingsTest := &targetingProto.Targeting{
+		TargetingGroups: []*targetingProto.Targeting_TargetingGroup{
+			{
+				Targetings: []*targetingProto.Targeting_InnerTargeting{
+					// AND
+					{
+						Operator: targetingProto.Targeting_EQUALS,
+						Key:      &wrapperspb.StringValue{Value: "fs_all_users"},
+						Value:    structpb.NewStringValue(""),
+					},
+				},
+			},
+		},
+	}
+
+	match, err := targetingMatch(targetingsTest, "visitor_id", &targeting.Context{})
+	assert.Nil(t, err)
+	assert.True(t, match)
+
+	targetingsTest.TargetingGroups[0].Targetings = append(targetingsTest.TargetingGroups[0].Targetings, &targetingProto.Targeting_InnerTargeting{
+		Operator: targetingProto.Targeting_EQUALS,
+		Key:      &wrapperspb.StringValue{Value: "key"},
+		Value:    structpb.NewStringValue("value"),
+	})
+
+	match, err = targetingMatch(targetingsTest, "visitor_id", &targeting.Context{})
+	assert.Nil(t, err)
+	assert.False(t, match)
+
+	match, err = targetingMatch(targetingsTest, "visitor_id", &targeting.Context{
+		Standard: targeting.ContextMap{
+			"key": structpb.NewStringValue("value"),
+		},
+	})
+	assert.Nil(t, err)
+	assert.True(t, match)
+}
+
 // TestNumberTargeting checks all possible number targeting
 func TestNumberTargeting(t *testing.T) {
 	testTargetingNumber(targetingProto.Targeting_LOWER_THAN, 11, 10, t, true, false)
