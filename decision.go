@@ -164,7 +164,7 @@ func GetDecision(
 
 	if err != nil {
 		logger.Logf(ErrorLevel, "error occured when getting cached assignments: %v", err)
-		return decisionResponse, nil
+		logger.Logf(InfoLevel, "continuing without any cached assignments")
 	}
 
 	// Handle single assignment clients
