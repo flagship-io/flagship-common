@@ -116,7 +116,7 @@ func TestGetPreviousABVGIds(t *testing.T) {
 	}
 
 	previousVGIds := getPreviousABVGIds(vgs, existingAssignments)
-	assert.EqualValues(t, []string{"testId1", "testId4"}, previousVGIds)
+	assert.EqualValues(t, []string{"testId1", "testId3", "testId4"}, previousVGIds)
 }
 
 func TestGetCampaignsVG(t *testing.T) {

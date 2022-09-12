@@ -67,9 +67,9 @@ func getPreviousABVGIds(variationGroups []*VariationGroup, existingVar map[strin
 		if vg.Campaign.Type != "ab" {
 			continue
 		}
-		existingVariations, ok := existingVar[vg.ID]
+		_, alreadyAssigned := existingVar[vg.ID]
 		_, added := alreadyAdded[vg.ID]
-		if ok && existingVariations.Activated && !added {
+		if alreadyAssigned && !added {
 			previousVisVGsAB = append(previousVisVGsAB, vg.ID)
 			alreadyAdded[vg.ID] = true
 		}
