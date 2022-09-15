@@ -272,21 +272,17 @@ func GetDecision(
 		}
 
 		// 3.1 If allocation is newly computed and not only 1 variation,
-		// or if campaign activation not saved and should be
 		// tag this vg alloc to be saved
-		alreadyActivated := ok && existingAssignment.Activated
-		if triggerHit && !alreadyActivated || isNew {
+		if isNew {
 			newVGAssignments[vg.ID] = &VisitorCache{
 				VariationID: vid,
 				Activated:   triggerHit,
 			}
 		}
 
-		// 3.1 If anonymous allocation is newly computed and not only 1 variation,
-		// or if campaign activation not saved and should be
+		// 3.2 If anonymous allocation is newly computed and not only 1 variation,
 		// tag this vg alloc to be saved
-		alreadyActivatedAnonymous := okAnonymous && existingAssignmentAnonymous.Activated
-		if enableReconciliation && (triggerHit && !alreadyActivatedAnonymous || isNewAnonymous) {
+		if enableReconciliation && isNewAnonymous {
 			newVGAssignmentsAnonymous[vg.ID] = &VisitorCache{
 				VariationID: vid,
 				Activated:   triggerHit,

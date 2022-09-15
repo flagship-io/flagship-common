@@ -28,7 +28,8 @@ type VariationGroup struct {
 // VisitorCache represents a visitor variation group cache item for a variation group
 type VisitorCache struct {
 	VariationID string
-	Activated   bool
+	// Deprecated: not used anymore
+	Activated bool
 }
 
 // VisitorAssignments represents a visitor assignment for a variation group
