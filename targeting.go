@@ -27,7 +27,15 @@ func targetingMatch(targetings *protoTargeting.Targeting, visitorID string, cont
 			}
 
 			if ok || isEmptyContextOperator(t.GetOperator()) {
-				matchTargeting, err := targetingMatchOperator(t.GetOperator(), t.GetValue(), v)
+				computedValue, err := computeValue(t.GetValue(), &scriptingContext{
+					VisitorID:      visitorID,
+					VisitorContext: context,
+				})
+				if err != nil {
+					return false, err
+				}
+
+				matchTargeting, err := targetingMatchOperator(t.GetOperator(), computedValue, v)
 				if err != nil {
 					return false, err
 				}

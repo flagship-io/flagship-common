@@ -11,6 +11,29 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
+func TestGetTargetingValue(t *testing.T) {
+	targetingValue := structpb.NewStructValue(&structpb.Struct{Fields: map[string]*structpb.Value{
+		"type": structpb.NewStringValue("script"),
+		"script": structpb.NewStringValue(`
+			function getValue(){
+				return $visitor.id + $visitor.context.key + '1'
+			}
+			getValue()
+		`),
+	}})
+	computedValue, err := computeValue(targetingValue, &scriptingContext{
+		VisitorID: "vid",
+		VisitorContext: &targeting.Context{
+			Standard: map[string]*structpb.Value{
+				"key": structpb.NewStringValue("value"),
+			},
+		},
+	})
+
+	assert.Nil(t, err)
+	assert.Equal(t, "vidvalue1", computedValue.GetStringValue())
+}
+
 func testTargetingNumber(operator targetingProto.Targeting_TargetingOperator, targetingValue float64, value float64, t *testing.T, shouldMatch bool, shouldRaiseError bool) {
 	match, err := targetingMatchOperatorNumber(operator, targetingValue, value)
 

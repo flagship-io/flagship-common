@@ -77,8 +77,17 @@ func getPreviousABVGIds(variationGroups []*VariationGroup, existingVar map[strin
 	return previousVisVGsAB
 }
 
+func computeModificationValue(modif *decision_response.Modifications, scriptingContext *scriptingContext) {
+	for k, v := range modif.Value.GetFields() {
+		structValue, err := computeValue(v, scriptingContext)
+		if err == nil {
+			modif.Value.Fields[k] = structValue
+		}
+	}
+}
+
 // buildCampaignResponse creates a decision campaign response, filling out empty flag keys for each variation if needed
-func buildCampaignResponse(vg *VariationGroup, variation *Variation, exposeAllKeys bool) *decision_response.Campaign {
+func buildCampaignResponse(vg *VariationGroup, variation *Variation, scriptingContext *scriptingContext, exposeAllKeys bool) *decision_response.Campaign {
 	campaignResponse := decision_response.Campaign{
 		Id:               wrapperspb.String(vg.Campaign.ID),
 		VariationGroupId: wrapperspb.String(vg.ID),
@@ -99,26 +108,23 @@ func buildCampaignResponse(vg *VariationGroup, variation *Variation, exposeAllKe
 			variation.Modifications.Value.Fields = map[string]*structpb.Value{}
 		}
 		for _, v := range vg.Variations {
-			if v.Modifications != nil && v.Modifications.Value != nil && v.Modifications.Value.Fields != nil {
-				for key := range v.Modifications.Value.Fields {
-					if _, ok := variation.Modifications.Value.Fields[key]; !ok {
-						variation.Modifications.Value.Fields[key] = &structpb.Value{Kind: &structpb.Value_NullValue{}}
-					}
+			for key := range v.Modifications.GetValue().GetFields() {
+				if _, ok := variation.Modifications.Value.Fields[key]; !ok {
+					variation.Modifications.Value.Fields[key] = &structpb.Value{Kind: &structpb.Value_NullValue{}}
 				}
 			}
 		}
 	} else {
-		if variation.Modifications != nil && variation.Modifications.Value != nil {
-			for key, val := range variation.Modifications.Value.Fields {
-				_, okCast := val.GetKind().(*structpb.Value_NullValue)
-				if okCast {
-					// Remove nil value keys if shouldFillKeys is false
-					delete(variation.Modifications.Value.Fields, key)
-				}
+		for key, val := range variation.Modifications.GetValue().GetFields() {
+			_, okCast := val.GetKind().(*structpb.Value_NullValue)
+			if okCast {
+				// Remove nil value keys if shouldFillKeys is false
+				delete(variation.Modifications.Value.Fields, key)
 			}
 		}
 	}
 
+	computeModificationValue(variation.Modifications, scriptingContext)
 	protoModif := &decision_response.Variation{
 		Id:            wrapperspb.String(variation.ID),
 		Modifications: variation.Modifications,

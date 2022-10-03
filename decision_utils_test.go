@@ -36,17 +36,38 @@ func createBoolTargeting() *protoTargeting.Targeting {
 	return &protoTargeting.Targeting{TargetingGroups: targetingGroups}
 }
 
+func TestComputeModificationValue(t *testing.T) {
+	value, _ := structpb.NewStruct(map[string]interface{}{
+		"key": map[string]interface{}{
+			"type":   "script",
+			"script": "$visitor.id + $visitor.context.key + '1'",
+		},
+	})
+	modif := &decision_response.Modifications{Value: value}
+
+	computeModificationValue(modif, &scriptingContext{
+		VisitorID: "vid",
+		VisitorContext: &targeting.Context{
+			Standard: map[string]*structpb.Value{
+				"key": structpb.NewStringValue("value"),
+			},
+		},
+	})
+
+	assert.Equal(t, "vidvalue1", modif.Value.Fields["key"].GetStringValue())
+}
+
 func TestDeduplicateCampaigns(t *testing.T) {
-	campaignsArray := []*Campaign{&Campaign{
+	campaignsArray := []*Campaign{{
 		ID:        "testIDNEW",
 		CreatedAt: time.Now(),
-	}, &Campaign{
+	}, {
 		ID:        "testIDOLD",
 		CreatedAt: time.Now().Add(-1 * time.Hour),
-	}, &Campaign{
+	}, {
 		ID:        "testIDMIDDLE",
 		CreatedAt: time.Now().Add(-30 * time.Minute),
-	}, &Campaign{
+	}, {
 		ID:        "testIDNEW",
 		CreatedAt: time.Now(),
 	}}
@@ -203,14 +224,14 @@ func TestBuildCampaignResponse(t *testing.T) {
 		Variations: []*Variation{var1, var2},
 	}
 
-	resp := buildCampaignResponse(vg, var1, false)
+	resp := buildCampaignResponse(vg, var1, nil, false)
 	assert.NotNil(t, resp)
 	assert.Equal(t, "cid", resp.Id.Value)
 	assert.Equal(t, "ab", resp.Type.Value)
 	assert.Equal(t, "vgid", resp.VariationGroupId.Value)
 	assert.Equal(t, value1, resp.Variation.Modifications.Value)
 
-	resp = buildCampaignResponse(vg, var1, true)
+	resp = buildCampaignResponse(vg, var1, nil, true)
 	assert.NotNil(t, resp)
 	assert.Equal(t, "cid", resp.Id.Value)
 	assert.Equal(t, "ab", resp.Type.Value)
@@ -223,7 +244,7 @@ func TestBuildCampaignResponse(t *testing.T) {
 		"bool2":  nil,
 	}, resp.Variation.Modifications.Value.AsMap())
 
-	resp = buildCampaignResponse(vg, var3, true)
+	resp = buildCampaignResponse(vg, var3, nil, true)
 	assert.NotNil(t, resp)
 	assert.Equal(t, "cid", resp.Id.Value)
 	assert.Equal(t, "ab", resp.Type.Value)
@@ -237,7 +258,7 @@ func TestBuildCampaignResponse(t *testing.T) {
 	}, resp.Variation.Modifications.Value.AsMap())
 
 	var2.Modifications.Value.Fields["nil"] = structpb.NewNullValue()
-	resp = buildCampaignResponse(vg, var2, false)
+	resp = buildCampaignResponse(vg, var2, nil, false)
 	assert.NotNil(t, resp)
 	assert.Equal(t, 1, len(resp.Variation.Modifications.Value.Fields))
 	assert.EqualValues(t, map[string]interface{}{

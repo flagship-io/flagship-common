@@ -179,6 +179,12 @@ func GetDecision(
 	// Initialize has AB Test deployed
 	hasABCampaign := false
 
+	// Initialize scripting context for targeting & flag scripting
+	scriptingContext := &scriptingContext{
+		VisitorID:      visitorID,
+		VisitorContext: visitorContext,
+	}
+
 	// 3. Compute or get from cache each variation group  variation affectation
 	for _, vg := range variationGroups {
 
@@ -308,7 +314,7 @@ func GetDecision(
 		}
 
 		// 3.3 Build single campaign response from variation
-		campaignResponse := buildCampaignResponse(vg, chosenVariation, options.ExposeAllKeys)
+		campaignResponse := buildCampaignResponse(vg, chosenVariation, scriptingContext, options.ExposeAllKeys)
 
 		// 3.4 Add campaign response to global response
 		decisionResponse.Campaigns = append(decisionResponse.Campaigns, campaignResponse)

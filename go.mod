@@ -3,6 +3,7 @@ module github.com/flagship-io/flagship-common
 go 1.15
 
 require (
+	github.com/dop251/goja v0.0.0-20220927172339-ea66e911853d // indirect
 	github.com/flagship-io/flagship-proto v0.0.15
 	github.com/golang/protobuf v1.5.2
 	github.com/sirupsen/logrus v1.8.1
