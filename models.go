@@ -6,6 +6,7 @@ import (
 	"github.com/flagship-io/flagship-common/targeting"
 	"github.com/flagship-io/flagship-proto/decision_response"
 	targetingProto "github.com/flagship-io/flagship-proto/targeting"
+	troubleshootingProto "github.com/flagship-io/flagship-proto/troubleshooting"
 )
 
 // VariationInfo stores the variation information for decision making
@@ -51,6 +52,7 @@ type Environment struct {
 	SingleAssignment  bool
 	UseReconciliation bool
 	CacheEnabled      bool
+	Troubleshooting   *troubleshootingProto.Troubleshooting
 }
 
 type DecisionOptions struct {
