@@ -74,7 +74,6 @@ func mockSaveCache(environmentID string, id string, assignment *VisitorAssignmen
 }
 
 func mockActivateCampaigns(activations []*VisitorActivation) error {
-	fmt.Println("Activate campaigns", activations)
 	return nil
 }
 
