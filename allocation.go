@@ -6,6 +6,8 @@ import (
 	"github.com/spaolacci/murmur3"
 )
 
+var VisitorNotTrackedError = errors.New("Visitor untracked")
+
 func genHashFloat(visitorID string, vgID string) (float32, error) {
 	hash := murmur3.New32()
 	_, err := hash.Write([]byte(vgID + visitorID))
@@ -42,7 +44,7 @@ func getRandomAllocation(visitorID string, variationGroup *VariationGroup, isCum
 	}
 
 	// If no variation alloc, returns empty
-	return nil, errors.New("Visitor untracked")
+	return nil, VisitorNotTrackedError
 }
 
 func isVisitorInBucket(visitorID string, campaign *Campaign) (bool, error) {

@@ -247,7 +247,11 @@ func GetDecision(
 			logger.Logf(DebugLevel, "assigning visitor ID %s to new variation", visitorID)
 			chosenVariation, err = getRandomAllocation(visitorID, vg, options.IsCumulativeAlloc)
 			if err != nil {
-				logger.Logf(WarnLevel, "error on new allocation : %v", err)
+				if err == VisitorNotTrackedError {
+					logger.Logf(InfoLevel, err.Error())
+				} else {
+					logger.Logf(WarnLevel, "error on new allocation : %v", err)
+				}
 				if options.CampaignID != "" {
 					return decisionResponse, err
 				}

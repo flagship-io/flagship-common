@@ -12,6 +12,7 @@ import (
 // VariationInfo stores the variation information for decision making
 type Variation struct {
 	ID            string
+	Name          string
 	Allocation    float32
 	Modifications *decision_response.Modifications
 	Reference     bool
@@ -20,6 +21,7 @@ type Variation struct {
 // VariationsGroupInfo stores the variation group information for decision making
 type VariationGroup struct {
 	ID         string
+	Name       string
 	Campaign   *Campaign
 	CreatedAt  time.Time
 	Targetings *targetingProto.Targeting
