@@ -83,6 +83,7 @@ type DecisionHandlers struct {
 // Campaign stores the campaign information for decision making
 type Campaign struct {
 	ID              string
+	Name            string
 	Slug            *string
 	VariationGroups []*VariationGroup
 	Type            string

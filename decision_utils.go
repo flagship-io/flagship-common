@@ -80,8 +80,10 @@ func getPreviousABVGIds(variationGroups []*VariationGroup, existingVar map[strin
 // buildCampaignResponse creates a decision campaign response, filling out empty flag keys for each variation if needed
 func buildCampaignResponse(vg *VariationGroup, variation *Variation, exposeAllKeys bool) *decision_response.Campaign {
 	campaignResponse := decision_response.Campaign{
-		Id:               wrapperspb.String(vg.Campaign.ID),
-		VariationGroupId: wrapperspb.String(vg.ID),
+		Id:                 wrapperspb.String(vg.Campaign.ID),
+		Name:               wrapperspb.String(vg.Campaign.Name),
+		VariationGroupId:   wrapperspb.String(vg.ID),
+		VariationGroupName: wrapperspb.String(vg.Name),
 	}
 	if vg.Campaign.Slug != nil {
 		campaignResponse.Slug = wrapperspb.String(*vg.Campaign.Slug)
@@ -121,6 +123,7 @@ func buildCampaignResponse(vg *VariationGroup, variation *Variation, exposeAllKe
 
 	protoModif := &decision_response.Variation{
 		Id:            wrapperspb.String(variation.ID),
+		Name:          wrapperspb.String(variation.Name),
 		Modifications: variation.Modifications,
 		Reference:     variation.Reference,
 	}
