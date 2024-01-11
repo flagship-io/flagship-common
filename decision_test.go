@@ -2,6 +2,7 @@ package decision
 
 import (
 	"fmt"
+	"maps"
 	"sync"
 	"testing"
 
@@ -111,32 +112,54 @@ func TestGetCache(t *testing.T) {
 			VariationID: "v_id",
 			Activated:   true,
 		},
-	}
-	newAssignmentsDG := map[string]*VisitorCache{
 		"vg2_id": {
 			VariationID: "v2_id",
 			Activated:   true,
 		},
 	}
-	cache[envID+visitorID] = &VisitorAssignments{
-		Assignments: newAssignments,
+	newAssignmentsDG := map[string]*VisitorCache{
+		"vg_id": {
+			VariationID: "vdg_id",
+			Activated:   true,
+		},
+		"vg3_id": {
+			VariationID: "v3_id",
+			Activated:   true,
+		},
 	}
 
-	assignments, err = getCache(envID, visitorID, anonymousID, decisionGroup, false, localGetCache)
-	assert.Nil(t, err)
-	assert.EqualValues(t, newAssignments, assignments.Standard.getAssignments())
-	assert.Nil(t, assignments.Anonymous)
-
-	cache[envID+anonymousID] = &VisitorAssignments{
-		Assignments: newAssignments,
-	}
 	cache[envID+decisionGroup] = &VisitorAssignments{
 		Assignments: newAssignmentsDG,
 	}
 
+	assignments, err = getCache(envID, visitorID, anonymousID, decisionGroup, false, localGetCache)
+	assert.Nil(t, err)
+	// Check that decision group assignment filled out the empty standard assignment
+	assert.EqualValues(t, newAssignmentsDG, assignments.Standard.getAssignments())
+	assert.Nil(t, assignments.Anonymous)
+
+	cache[envID+visitorID] = &VisitorAssignments{
+		Assignments: maps.Clone(newAssignments),
+	}
+
+	assignments, err = getCache(envID, visitorID, anonymousID, decisionGroup, false, localGetCache)
+	assert.Nil(t, err)
+	// Check that the standard assignments got overriden by the decision group assignments
+	assert.EqualValues(t, newAssignmentsDG["vg_id"], assignments.Standard.getAssignments()["vg_id"])
+	assert.EqualValues(t, newAssignments["vg2_id"], assignments.Standard.getAssignments()["vg2_id"])
+	assert.EqualValues(t, newAssignmentsDG["vg3_id"], assignments.Standard.getAssignments()["vg3_id"])
+	assert.Nil(t, assignments.Anonymous)
+
+	cache[envID+anonymousID] = &VisitorAssignments{
+		Assignments: maps.Clone(newAssignments),
+	}
+	cache[envID+decisionGroup] = &VisitorAssignments{
+		Assignments: maps.Clone(newAssignmentsDG),
+	}
+
 	assignments, err = getCache(envID, visitorID, anonymousID, decisionGroup, true, localGetCache)
 	assert.Nil(t, err)
-	assert.Equal(t, 2, len(assignments.Standard.getAssignments()))
+	assert.Equal(t, 3, len(assignments.Standard.getAssignments()))
 	assert.EqualValues(t, newAssignments, assignments.Anonymous.getAssignments())
 }
 

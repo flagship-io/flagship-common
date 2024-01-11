@@ -76,7 +76,7 @@ func getCache(
 		}(cacheChan)
 	}
 
-	assignmentsDG := &VisitorAssignments{}
+	var assignmentsDG *VisitorAssignments
 	for i := 0; i < nbRoutines; i++ {
 		r := <-cacheChan
 		switch r.visitorType {
@@ -91,7 +91,11 @@ func getCache(
 	}
 
 	// Assign decision group assignments to visitor
-	if allAssignments.Standard.getAssignments() != nil {
+	if assignmentsDG != nil {
+		if allAssignments.Standard == nil {
+			allAssignments.Standard = &VisitorAssignments{Assignments: map[string]*VisitorCache{}}
+		}
+		// Override standard assignments with decision group ones
 		for k, v := range assignmentsDG.getAssignments() {
 			allAssignments.Standard.Assignments[k] = v
 		}
