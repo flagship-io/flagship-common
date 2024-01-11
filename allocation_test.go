@@ -12,7 +12,7 @@ import (
 func testVariationGroupAlloc(vg VariationGroup, t *testing.T, isCumulativeAlloc bool) {
 	counts := []int{}
 	for i := 1; i < 100000; i++ {
-		vAlloc, err := getRandomAllocation(strconv.Itoa(rand.Int()), &vg, isCumulativeAlloc)
+		vAlloc, err := getRandomAllocation(strconv.Itoa(rand.Int()), "", &vg, isCumulativeAlloc)
 
 		if err != nil {
 			t.Errorf("error when getting alloc: %v", err)
@@ -146,7 +146,7 @@ func TestVariationAllocation(t *testing.T) {
 	allocErrors := []error{}
 	nbTrials := 100000
 	for i := 1; i < nbTrials; i++ {
-		_, err := getRandomAllocation(strconv.Itoa(rand.Int()), &variationsGroupInfo, false)
+		_, err := getRandomAllocation(strconv.Itoa(rand.Int()), "", &variationsGroupInfo, false)
 
 		if err != nil {
 			allocErrors = append(allocErrors, err)

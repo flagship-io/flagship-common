@@ -18,8 +18,9 @@ type assignmentResult struct {
 }
 
 type allVisitorAssignments struct {
-	Standard  *VisitorAssignments
-	Anonymous *VisitorAssignments
+	Standard      *VisitorAssignments
+	Anonymous     *VisitorAssignments
+	DecisionGroup *VisitorAssignments
 }
 
 func getCache(
@@ -76,7 +77,6 @@ func getCache(
 		}(cacheChan)
 	}
 
-	var assignmentsDG *VisitorAssignments
 	for i := 0; i < nbRoutines; i++ {
 		r := <-cacheChan
 		switch r.visitorType {
@@ -85,23 +85,36 @@ func getCache(
 		case "anonymous":
 			allAssignments.Anonymous = r.result
 		case "decisionGroup":
-			assignmentsDG = r.result
+			allAssignments.DecisionGroup = r.result
 		}
 		err = r.err
 	}
 
-	// Assign decision group assignments to visitor
-	if assignmentsDG != nil {
-		if allAssignments.Standard == nil {
-			allAssignments.Standard = &VisitorAssignments{Assignments: map[string]*VisitorCache{}}
-		}
-		// Override standard assignments with decision group ones
-		for k, v := range assignmentsDG.getAssignments() {
-			allAssignments.Standard.Assignments[k] = v
-		}
-	}
-
 	return allAssignments, err
+}
+
+// Refactored helper function to handle saving of cache assignments
+func saveCacheAssignments(
+	wg *sync.WaitGroup,
+	handlers DecisionHandlers,
+	envID string,
+	id string,
+	assignments map[string]*VisitorCache,
+	now time.Time,
+	logInfo string,
+) {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		logger.Logf(InfoLevel, "saving assignments cache for %s: %s", logInfo, id)
+		err := handlers.SaveCache(envID, id, &VisitorAssignments{
+			Timestamp:   now.Unix(),
+			Assignments: assignments,
+		})
+		if err != nil {
+			logger.Logf(ErrorLevel, "error occurred on cache saving for %s: %v", id, err)
+		}
+	}()
 }
 
 // GetDecision return a decision response from visitor & environment infos
@@ -121,8 +134,8 @@ func GetDecision(
 	triggerHit := options.TriggerHit
 
 	if decisionGroup != "" {
-		// 1bis. Compute decision group if set
-		decisionGroup = envID + ":" + base64.StdEncoding.EncodeToString([]byte(decisionGroup))
+		// encode decision group if set
+		decisionGroup = base64.StdEncoding.EncodeToString([]byte(decisionGroup))
 	}
 
 	decisionResponse := &decision_response.DecisionResponse{}
@@ -156,7 +169,7 @@ func GetDecision(
 	// and if 1vis1test or XP-C is enabled or at least one campaign as multiple variations,
 	enableCache := environmentInfos.CacheEnabled && (hasMultipleVariations || environmentInfos.SingleAssignment || environmentInfos.UseReconciliation)
 
-	// 2.a Run parallel execution
+	// 2.b Load all cache in parallel
 	allCacheAssignments := &allVisitorAssignments{}
 	var err error
 	if enableCache {
@@ -203,15 +216,17 @@ func GetDecision(
 			}
 		}
 
-		var vid string
 		isNew := false
 		isNewAnonymous := false
 		existingAssignment, ok := allCacheAssignments.Standard.getAssignment(vg.ID)
 		existingAssignmentAnonymous, okAnonymous := allCacheAssignments.Anonymous.getAssignment(vg.ID)
+		existingAssignmentDecisionGroup, okDecisionGroup := allCacheAssignments.DecisionGroup.getAssignment(vg.ID)
 
 		var existingVariation *Variation
 		var existingAnonymousVariation *Variation
-		if ok || okAnonymous {
+		var existingDecisionGroupVariation *Variation
+
+		if ok || okAnonymous || okDecisionGroup {
 			for _, v := range vg.Variations {
 				if ok && v.ID == existingAssignment.VariationID {
 					existingVariation = v
@@ -219,6 +234,14 @@ func GetDecision(
 				if okAnonymous && v.ID == existingAssignmentAnonymous.VariationID {
 					existingAnonymousVariation = v
 				}
+				if okDecisionGroup && v.ID == existingAssignmentDecisionGroup.VariationID {
+					existingDecisionGroupVariation = v
+				}
+			}
+
+			// If decision group variation is found, override the cached variation
+			if existingDecisionGroupVariation != nil {
+				existingVariation = existingDecisionGroupVariation
 			}
 
 			if existingVariation == nil && existingAnonymousVariation == nil {
@@ -227,6 +250,7 @@ func GetDecision(
 				continue
 			}
 		}
+
 		var chosenVariation *Variation
 
 		// manage the bucket allocation of the visitor
@@ -236,20 +260,18 @@ func GetDecision(
 		// If already has variation && assigned variation ID  exist, visitor should not be re-assigned
 		if ok && existingVariation != nil {
 			logger.Logf(DebugLevel, "visitor ID %s already assigned to variation ID %s", visitorID, existingVariation.ID)
-			vid = existingAssignment.VariationID
 			chosenVariation = existingVariation
 			enableBucketAllocation = false
 		} else if enableReconciliation && okAnonymous && existingAnonymousVariation != nil {
 			// If reconciliation is on, find anonymous variation as set vid to that variation ID
 			logger.Logf(DebugLevel, "anonymous ID %s already assigned to variation ID %s", anonymousID, existingAnonymousVariation.ID)
-			vid = existingAssignmentAnonymous.VariationID
 			chosenVariation = existingAnonymousVariation
 			enableBucketAllocation = false
 			isNew = true
 		} else {
 			// Else compute new allocation
 			logger.Logf(DebugLevel, "assigning visitor ID %s to new variation", visitorID)
-			chosenVariation, err = getRandomAllocation(visitorID, vg, options.IsCumulativeAlloc)
+			chosenVariation, err = getRandomAllocation(visitorID, decisionGroup, vg, options.IsCumulativeAlloc)
 			if err != nil {
 				if err == VisitorNotTrackedError {
 					logger.Logf(InfoLevel, err.Error())
@@ -262,7 +284,6 @@ func GetDecision(
 				continue
 			}
 			logger.Logf(DebugLevel, "visitor ID %s got assigned to variation ID %s", visitorID, chosenVariation.ID)
-			vid = chosenVariation.ID
 			isNew = true
 			isNewAnonymous = true
 		}
@@ -285,7 +306,7 @@ func GetDecision(
 		alreadyActivated := ok && existingAssignment.Activated
 		if triggerHit && !alreadyActivated || isNew {
 			newVGAssignments[vg.ID] = &VisitorCache{
-				VariationID: vid,
+				VariationID: chosenVariation.ID,
 				Activated:   triggerHit,
 			}
 		}
@@ -296,7 +317,7 @@ func GetDecision(
 		alreadyActivatedAnonymous := okAnonymous && existingAssignmentAnonymous.Activated
 		if enableReconciliation && (triggerHit && !alreadyActivatedAnonymous || isNewAnonymous) {
 			newVGAssignmentsAnonymous[vg.ID] = &VisitorCache{
-				VariationID: vid,
+				VariationID: chosenVariation.ID,
 				Activated:   triggerHit,
 			}
 		}
@@ -311,7 +332,7 @@ func GetDecision(
 				VisitorID:        visitorID,
 				AnonymousID:      anonymousIDActivate,
 				VariationGroupID: vg.ID,
-				VariationID:      vid,
+				VariationID:      chosenVariation.ID,
 			})
 		}
 
