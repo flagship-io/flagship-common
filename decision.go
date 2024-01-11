@@ -93,30 +93,6 @@ func getCache(
 	return allAssignments, err
 }
 
-// Refactored helper function to handle saving of cache assignments
-func saveCacheAssignments(
-	wg *sync.WaitGroup,
-	handlers DecisionHandlers,
-	envID string,
-	id string,
-	assignments map[string]*VisitorCache,
-	now time.Time,
-	logInfo string,
-) {
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		logger.Logf(InfoLevel, "saving assignments cache for %s: %s", logInfo, id)
-		err := handlers.SaveCache(envID, id, &VisitorAssignments{
-			Timestamp:   now.Unix(),
-			Assignments: assignments,
-		})
-		if err != nil {
-			logger.Logf(ErrorLevel, "error occurred on cache saving for %s: %v", id, err)
-		}
-	}()
-}
-
 // GetDecision return a decision response from visitor & environment infos
 func GetDecision(
 	visitorInfos Visitor,
