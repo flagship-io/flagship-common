@@ -1,11 +1,35 @@
 package decision
 
 import (
+	"errors"
+
+	"github.com/flagship-io/flagship-common/internal/utils"
 	"github.com/flagship-io/flagship-common/targeting"
 	"github.com/flagship-io/flagship-proto/decision_response"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
+
+type ChosenVariationResult struct {
+	chosenVariation        *Variation
+	newAssignment          *VisitorCache
+	newAssignmentAnonymous *VisitorCache
+}
+
+// isCacheEnabled is true if environments config enables it,
+// and if 1vis1test or XP-C is enabled or at least one campaign as multiple variations,
+func isCacheEnabled(environmentInfos Environment, variationGroups []*VariationGroup) bool {
+	hasMultipleVariations := false
+	for _, vg := range variationGroups {
+		if len(vg.Variations) > 1 {
+			hasMultipleVariations = true
+			break
+		}
+	}
+	// Enable caching if customer package allows it,
+	// and if 1vis1test or XP-C is enabled or at least one campaign as multiple variations,
+	return environmentInfos.CacheEnabled && (hasMultipleVariations || environmentInfos.SingleAssignment || environmentInfos.UseReconciliation)
+}
 
 // deduplicateCampaigns returns the first campaign that matches the campaign ID
 func deduplicateCampaigns(campaigns []*Campaign) []*Campaign {
@@ -59,8 +83,8 @@ func getCampaignsVG(campaigns []*Campaign, visitorID string, context *targeting.
 	return campaignVG
 }
 
-// getPreviousABVGIds returns previously assigned AB test campaigns for visitor
-func getPreviousABVGIds(variationGroups []*VariationGroup, existingVar map[string]*VisitorCache) []string {
+// getActivatedABVGIds returns previously assigned AB test campaigns for visitor
+func getActivatedABVGIds(variationGroups []*VariationGroup, existingVar map[string]*VisitorCache) []string {
 	previousVisVGsAB := []string{}
 	alreadyAdded := map[string]bool{}
 	for _, vg := range variationGroups {
@@ -75,6 +99,137 @@ func getPreviousABVGIds(variationGroups []*VariationGroup, existingVar map[strin
 		}
 	}
 	return previousVisVGsAB
+}
+
+// shouldSkipVG returns true if the current variation should be skiped according to single assignment rule
+func shouldSkipVG(environmentInfos Environment, vg *VariationGroup, previousVisVGsAB []string, hasABCampaign bool) bool {
+	return environmentInfos.SingleAssignment && vg.Campaign.Type == "ab" &&
+		(len(previousVisVGsAB) > 0 && !utils.IsInStringArray(vg.ID, previousVisVGsAB) || hasABCampaign)
+}
+
+// shouldSkipBucketVG returns true if the variation group should be skipped according to bucket allocation rule
+func shouldSkipBucketVG(enableBucketAllocation bool, visitorID string, campaign *Campaign) bool {
+	if enableBucketAllocation {
+		isInBucket, err := isVisitorInBucket(visitorID, campaign)
+		if err != nil {
+			logger.Logf(WarnLevel, "error on bucket allocation for campaign %v: %v", campaign.ID, err)
+		}
+
+		if !isInBucket {
+			logger.Logf(DebugLevel, "visitor ID %s does not fall into the campaign's buckets. Skipping campaign", visitorID)
+			return true
+		}
+	}
+	return false
+}
+
+// selectNewVariation selects a variation according the visitor ID or decision group, the variation group and decision options
+func selectNewVariation(visitorID string, decisionGroup string, vg *VariationGroup, options DecisionOptions) (*Variation, error) {
+	chosenVariation, err := getRandomAllocation(visitorID, decisionGroup, vg, options.IsCumulativeAlloc)
+	if err != nil {
+		if err == VisitorNotTrackedError {
+			logger.Logf(InfoLevel, err.Error())
+		} else {
+			logger.Logf(WarnLevel, "error on new allocation : %v", err)
+		}
+		return nil, err
+	}
+	return chosenVariation, err
+}
+
+func chooseVariation(
+	visitorID string,
+	decisionGroup string,
+	vg *VariationGroup,
+	allCacheAssignments allVisitorAssignments,
+	options DecisionOptions) (*ChosenVariationResult, error) {
+
+	existingAssignment, ok := allCacheAssignments.Standard.getAssignment(vg.ID)
+	existingAssignmentAnonymous, okAnonymous := allCacheAssignments.Anonymous.getAssignment(vg.ID)
+	existingAssignmentDecisionGroup, okDecisionGroup := allCacheAssignments.DecisionGroup.getAssignment(vg.ID)
+
+	var existingVariation *Variation
+	var existingAnonymousVariation *Variation
+	var existingDecisionGroupVariation *Variation
+
+	var newAssignment *VisitorCache
+	var newAssignmentAnonymous *VisitorCache
+
+	if ok || okAnonymous || okDecisionGroup {
+		for _, v := range vg.Variations {
+			if ok && v.ID == existingAssignment.VariationID {
+				existingVariation = v
+			}
+			if okAnonymous && v.ID == existingAssignmentAnonymous.VariationID {
+				existingAnonymousVariation = v
+			}
+			if okDecisionGroup && v.ID == existingAssignmentDecisionGroup.VariationID {
+				existingDecisionGroupVariation = v
+			}
+		}
+
+		// If decision group variation is found, override the cached variation
+		if existingDecisionGroupVariation != nil {
+			existingVariation = existingDecisionGroupVariation
+		}
+
+		// Variation has been deleted
+		if existingVariation == nil && existingAnonymousVariation == nil {
+			logger.Logf(DebugLevel, "visitor ID %s was already assigned to deleted variation ID %s", visitorID, existingAssignment.VariationID)
+			return nil, errors.New("visitor ID assigned to deleted variation")
+		}
+	}
+
+	var isNew, isNewAnonymous bool
+	var chosenVariation *Variation
+	var err error
+
+	// If already has variation && assigned variation ID  exist, visitor should not be re-assigned
+	if existingVariation != nil {
+		logger.Logf(DebugLevel, "visitor already assigned to variation ID %s", existingVariation.ID)
+		chosenVariation = existingVariation
+	} else if existingAnonymousVariation != nil {
+		// If reconciliation is on, find anonymous variation as set vid to that variation ID
+		logger.Logf(DebugLevel, "anonymous ID already assigned to variation ID %s", existingAnonymousVariation.ID)
+		chosenVariation = existingAnonymousVariation
+		isNew = true
+	} else {
+		// Else compute new allocation
+		logger.Logf(DebugLevel, "assigning visitor ID to new variation")
+		chosenVariation, err = selectNewVariation(visitorID, decisionGroup, vg, options)
+		if err != nil {
+			return nil, err
+		}
+		logger.Logf(DebugLevel, "visitor ID %s got assigned to variation ID %s", visitorID, chosenVariation.ID)
+		isNew = true
+		isNewAnonymous = true
+	}
+
+	// 3.1 If allocation is newly computed and not only 1 variation,
+	// or if campaign activation not saved and should be
+	// tag this vg alloc to be saved
+	if options.TriggerHit && !(ok && existingAssignment.Activated) || isNew {
+		newAssignment = &VisitorCache{
+			VariationID: chosenVariation.ID,
+			Activated:   options.TriggerHit,
+		}
+	}
+
+	// 3.1bis If anonymous allocation is newly computed and not only 1 variation,
+	// or if campaign activation not saved and should be
+	// tag this vg alloc to be saved
+	if options.TriggerHit && !(okAnonymous && existingAssignmentAnonymous.Activated) || isNewAnonymous {
+		newAssignmentAnonymous = &VisitorCache{
+			VariationID: chosenVariation.ID,
+			Activated:   options.TriggerHit,
+		}
+	}
+
+	return &ChosenVariationResult{
+		chosenVariation:        chosenVariation,
+		newAssignment:          newAssignment,
+		newAssignmentAnonymous: newAssignmentAnonymous,
+	}, nil
 }
 
 // buildCampaignResponse creates a decision campaign response, filling out empty flag keys for each variation if needed
