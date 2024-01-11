@@ -1,6 +1,6 @@
 module github.com/flagship-io/flagship-common
 
-go 1.18
+go 1.21
 
 require (
 	github.com/flagship-io/flagship-proto v0.0.21
