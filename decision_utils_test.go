@@ -115,7 +115,7 @@ func TestGetPreviousABVGIds(t *testing.T) {
 		},
 	}
 
-	previousVGIds := getPreviousABVGIds(vgs, existingAssignments)
+	previousVGIds := getActivatedABVGIds(vgs, existingAssignments)
 	assert.EqualValues(t, []string{"testId1", "testId4"}, previousVGIds)
 }
 

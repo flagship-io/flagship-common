@@ -2,96 +2,11 @@ package decision
 
 import (
 	"encoding/base64"
-	"errors"
 	"sync"
-	"time"
 
-	"github.com/flagship-io/flagship-common/internal/utils"
 	"github.com/flagship-io/flagship-proto/decision_response"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
-
-type assignmentResult struct {
-	result      *VisitorAssignments
-	visitorType string
-	err         error
-}
-
-type allVisitorAssignments struct {
-	Standard      *VisitorAssignments
-	Anonymous     *VisitorAssignments
-	DecisionGroup *VisitorAssignments
-}
-
-func getCache(
-	environmentID string,
-	visitorID string,
-	anonymousID string,
-	decisionGroup string,
-	enableReconciliation bool,
-	getCacheHandler func(environmentID string, id string) (*VisitorAssignments, error)) (*allVisitorAssignments, error) {
-
-	cacheChan := make(chan (*assignmentResult))
-	allAssignments := &allVisitorAssignments{
-		Standard: &VisitorAssignments{
-			Assignments: map[string]*VisitorCache{},
-		},
-	}
-
-	var err error
-	var nbRoutines = 1
-
-	go func(c chan (*assignmentResult)) {
-		logger.Logf(InfoLevel, "getting assignment cache for visitor ID: %s", visitorID)
-		newAssignments, err := getCacheHandler(environmentID, visitorID)
-		c <- &assignmentResult{
-			result:      newAssignments,
-			visitorType: "standard",
-			err:         err,
-		}
-	}(cacheChan)
-
-	if enableReconciliation {
-		nbRoutines++
-		go func(c chan (*assignmentResult)) {
-			logger.Logf(InfoLevel, "getting assignment cache for anonymous ID: %s", anonymousID)
-			newAssignmentsAnonymous, err := getCacheHandler(environmentID, anonymousID)
-			c <- &assignmentResult{
-				result:      newAssignmentsAnonymous,
-				visitorType: "anonymous",
-				err:         err,
-			}
-		}(cacheChan)
-	}
-
-	if decisionGroup != "" {
-		nbRoutines++
-		go func(c chan (*assignmentResult)) {
-			logger.Logf(InfoLevel, "getting assignment cache for decision group: %s", decisionGroup)
-			newAssignmentsDG, err := getCacheHandler(environmentID, decisionGroup)
-			c <- &assignmentResult{
-				result:      newAssignmentsDG,
-				visitorType: "decisionGroup",
-				err:         err,
-			}
-		}(cacheChan)
-	}
-
-	for i := 0; i < nbRoutines; i++ {
-		r := <-cacheChan
-		switch r.visitorType {
-		case "standard":
-			allAssignments.Standard = r.result
-		case "anonymous":
-			allAssignments.Anonymous = r.result
-		case "decisionGroup":
-			allAssignments.DecisionGroup = r.result
-		}
-		err = r.err
-	}
-
-	return allAssignments, err
-}
 
 // GetDecision return a decision response from visitor & environment infos
 func GetDecision(
@@ -107,19 +22,26 @@ func GetDecision(
 	visitorContext := visitorInfos.Context
 	decisionGroup := visitorInfos.DecisionGroup
 	tracker := options.Tracker
-	triggerHit := options.TriggerHit
 
 	if decisionGroup != "" {
 		// encode decision group if set
 		decisionGroup = base64.StdEncoding.EncodeToString([]byte(decisionGroup))
 	}
 
+	// Initialize campaign response to be returned
 	decisionResponse := &decision_response.DecisionResponse{}
 	decisionResponse.VisitorId = wrapperspb.String(visitorID)
 	decisionResponse.Campaigns = []*decision_response.Campaign{}
 
+	// Initialize future variation groups variation assignments
 	newVGAssignments := make(map[string]*VisitorCache)
 	newVGAssignmentsAnonymous := make(map[string]*VisitorCache)
+
+	// Initialize future campaign activations
+	campaignActivations := []*VisitorActivation{}
+
+	// Initialize has AB Test assigned
+	hasABCampaign := false
 
 	tracker.TimeTrack("start compute targetings")
 
@@ -132,253 +54,117 @@ func GetDecision(
 	variationGroups := getCampaignsVG(campaignsArray, visitorID, visitorContext)
 	tracker.TimeTrack("end compute targetings")
 
-	// 2.a Check if assignments cache is enabled and relevant here
+	// 2.a Check if anonymous / visitor reconciliation is enabled and relevant here
 	enableReconciliation := environmentInfos.UseReconciliation && anonymousID != ""
-	hasMultipleVariations := false
-	for _, vg := range variationGroups {
-		if len(vg.Variations) > 1 {
-			hasMultipleVariations = true
-			break
-		}
-	}
-	// Enable caching if customer package allows it,
-	// and if 1vis1test or XP-C is enabled or at least one campaign as multiple variations,
-	enableCache := environmentInfos.CacheEnabled && (hasMultipleVariations || environmentInfos.SingleAssignment || environmentInfos.UseReconciliation)
 
-	// 2.b Load all cache in parallel
-	allCacheAssignments := &allVisitorAssignments{}
+	// 2.b Check if cache is enabled
+	enableCache := isCacheEnabled(environmentInfos, variationGroups)
+
+	// 2.c Load all cache in parallel
 	var err error
+	allCacheAssignments := &allVisitorAssignments{}
 	if enableCache {
 		tracker.TimeTrack("start find existing vID in Cache DB")
 		logger.Logf(InfoLevel, "loading assignments cache from DB")
 		allCacheAssignments, err = getCache(environmentInfos.ID, visitorID, anonymousID, decisionGroup, enableReconciliation, handlers.GetCache)
 		tracker.TimeTrack("end find existing vID in Cache DB")
+
+		if err != nil {
+			logger.Logf(ErrorLevel, "error occured when getting cached assignments: %v", err)
+			return decisionResponse, nil
+		}
 	}
 
-	if err != nil {
-		logger.Logf(ErrorLevel, "error occured when getting cached assignments: %v", err)
-		return decisionResponse, nil
-	}
-
-	// Handle single assignment clients
+	// 2.d Load previously assigned AB Tests to handle single assignment option
 	previousVisVGsAB := []string{}
 	if environmentInfos.SingleAssignment {
-		previousVisVGsAB = getPreviousABVGIds(variationGroups, allCacheAssignments.Standard.getAssignments())
+		previousVisVGsAB = getActivatedABVGIds(variationGroups, allCacheAssignments.Standard.getAssignments())
 	}
 
-	// Initialize future campaign activations
-	cActivations := []*VisitorActivation{}
-
-	// Initialize has AB Test deployed
-	hasABCampaign := false
-
-	// 3. Compute or get from cache each variation group  variation affectation
+	// 3. Compute or get from cache each variation group variation assignment
 	for _, vg := range variationGroups {
 
-		if vg.Campaign == nil {
-			return nil, errors.New("variation group should have a campaign")
+		// 3.1 Skip according to single assignment rule
+		if shouldSkipVG(environmentInfos, vg, previousVisVGsAB, hasABCampaign) {
+			logger.Logf(DebugLevel, "Campaign %s has been skipped because of single assignment rule", vg.Campaign.ID)
+			continue
 		}
 
-		// Handle single assignment clients
-		if environmentInfos.SingleAssignment && vg.Campaign.Type == "ab" {
-			if len(previousVisVGsAB) > 0 && !utils.IsInStringArray(vg.ID, previousVisVGsAB) {
-				// Visitor has already been assigned to a variation
-				continue
-			}
-
-			if hasABCampaign && len(previousVisVGsAB) == 0 {
-				// AB campaign has already been added to the response
-				continue
-			}
+		// 3.2 Skip according to bucket allocation rule
+		if shouldSkipBucketVG(options.EnableBucketAllocation == nil || *options.EnableBucketAllocation, visitorID, vg.Campaign) {
+			logger.Logf(DebugLevel, "visitor ID %s does not fall into the campaign's buckets. Skipping campaign", visitorID)
+			continue
 		}
 
-		isNew := false
-		isNewAnonymous := false
-		existingAssignment, ok := allCacheAssignments.Standard.getAssignment(vg.ID)
-		existingAssignmentAnonymous, okAnonymous := allCacheAssignments.Anonymous.getAssignment(vg.ID)
-		existingAssignmentDecisionGroup, okDecisionGroup := allCacheAssignments.DecisionGroup.getAssignment(vg.ID)
+		// 3.3 Choose the variation group assigned variation
+		// according to cache assignments, visitor ID and decision group and options
+		chosenVariationResult, err := chooseVariation(
+			visitorID,
+			decisionGroup,
+			vg,
+			*allCacheAssignments,
+			options)
 
-		var existingVariation *Variation
-		var existingAnonymousVariation *Variation
-		var existingDecisionGroupVariation *Variation
-
-		if ok || okAnonymous || okDecisionGroup {
-			for _, v := range vg.Variations {
-				if ok && v.ID == existingAssignment.VariationID {
-					existingVariation = v
-				}
-				if okAnonymous && v.ID == existingAssignmentAnonymous.VariationID {
-					existingAnonymousVariation = v
-				}
-				if okDecisionGroup && v.ID == existingAssignmentDecisionGroup.VariationID {
-					existingDecisionGroupVariation = v
-				}
+		// If variation assignment failed, return the response for single campaign, other move to the next variation group
+		if err != nil {
+			if options.CampaignID != "" {
+				return decisionResponse, err
 			}
-
-			// If decision group variation is found, override the cached variation
-			if existingDecisionGroupVariation != nil {
-				existingVariation = existingDecisionGroupVariation
-			}
-
-			if existingVariation == nil && existingAnonymousVariation == nil {
-				logger.Logf(DebugLevel, "visitor ID %s was already assigned to deleted variation ID %s", visitorID, existingAssignment.VariationID)
-				// Variation has been deleted
-				continue
-			}
+			continue
 		}
 
-		var chosenVariation *Variation
-
-		// manage the bucket allocation of the visitor
-		// if the visitor already have been allocated to a variation, we want to bypass the bucket allocation
-		enableBucketAllocation := options.EnableBucketAllocation == nil || *options.EnableBucketAllocation
-
-		// If already has variation && assigned variation ID  exist, visitor should not be re-assigned
-		if ok && existingVariation != nil {
-			logger.Logf(DebugLevel, "visitor ID %s already assigned to variation ID %s", visitorID, existingVariation.ID)
-			chosenVariation = existingVariation
-			enableBucketAllocation = false
-		} else if enableReconciliation && okAnonymous && existingAnonymousVariation != nil {
-			// If reconciliation is on, find anonymous variation as set vid to that variation ID
-			logger.Logf(DebugLevel, "anonymous ID %s already assigned to variation ID %s", anonymousID, existingAnonymousVariation.ID)
-			chosenVariation = existingAnonymousVariation
-			enableBucketAllocation = false
-			isNew = true
-		} else {
-			// Else compute new allocation
-			logger.Logf(DebugLevel, "assigning visitor ID %s to new variation", visitorID)
-			chosenVariation, err = getRandomAllocation(visitorID, decisionGroup, vg, options.IsCumulativeAlloc)
-			if err != nil {
-				if err == VisitorNotTrackedError {
-					logger.Logf(InfoLevel, err.Error())
-				} else {
-					logger.Logf(WarnLevel, "error on new allocation : %v", err)
-				}
-				if options.CampaignID != "" {
-					return decisionResponse, err
-				}
-				continue
-			}
-			logger.Logf(DebugLevel, "visitor ID %s got assigned to variation ID %s", visitorID, chosenVariation.ID)
-			isNew = true
-			isNewAnonymous = true
+		// 3.4 Add the new cache assignment for visitor and anonymous
+		if chosenVariationResult.newAssignment != nil {
+			newVGAssignments[vg.ID] = chosenVariationResult.newAssignment
+		}
+		if chosenVariationResult.newAssignmentAnonymous != nil {
+			newVGAssignmentsAnonymous[vg.ID] = chosenVariationResult.newAssignmentAnonymous
 		}
 
-		if enableBucketAllocation {
-			isInBucket, err := isVisitorInBucket(visitorID, vg.Campaign)
-			if err != nil {
-				logger.Logf(WarnLevel, "error on bucket allocation for campaign %v: %v", vg.Campaign.ID, err)
-			}
-
-			if !isInBucket {
-				logger.Logf(DebugLevel, "visitor ID %s does not fall into the campaign's buckets. Skipping campaign", visitorID)
-				continue
-			}
-		}
-
-		// 3.1 If allocation is newly computed and not only 1 variation,
-		// or if campaign activation not saved and should be
-		// tag this vg alloc to be saved
-		alreadyActivated := ok && existingAssignment.Activated
-		if triggerHit && !alreadyActivated || isNew {
-			newVGAssignments[vg.ID] = &VisitorCache{
-				VariationID: chosenVariation.ID,
-				Activated:   triggerHit,
-			}
-		}
-
-		// 3.1 If anonymous allocation is newly computed and not only 1 variation,
-		// or if campaign activation not saved and should be
-		// tag this vg alloc to be saved
-		alreadyActivatedAnonymous := okAnonymous && existingAssignmentAnonymous.Activated
-		if enableReconciliation && (triggerHit && !alreadyActivatedAnonymous || isNewAnonymous) {
-			newVGAssignmentsAnonymous[vg.ID] = &VisitorCache{
-				VariationID: chosenVariation.ID,
-				Activated:   triggerHit,
-			}
-		}
-
-		if triggerHit {
+		// 3.5 If decision should trigger activation hit, add it to list of activations
+		if options.TriggerHit {
 			anonymousIDActivate := visitorID
 			if enableReconciliation {
 				anonymousIDActivate = anonymousID
 			}
-			cActivations = append(cActivations, &VisitorActivation{
+			campaignActivations = append(campaignActivations, &VisitorActivation{
 				EnvironmentID:    envID,
 				VisitorID:        visitorID,
 				AnonymousID:      anonymousIDActivate,
 				VariationGroupID: vg.ID,
-				VariationID:      chosenVariation.ID,
+				VariationID:      chosenVariationResult.chosenVariation.ID,
 			})
 		}
 
-		// 3.3 Build single campaign response from variation
-		campaignResponse := buildCampaignResponse(vg, chosenVariation, options.ExposeAllKeys)
+		// 3.6 Serialize campaign response and add it to the to global response campaign list
+		decisionResponse.Campaigns = append(
+			decisionResponse.Campaigns,
+			buildCampaignResponse(vg, chosenVariationResult.chosenVariation, options.ExposeAllKeys))
 
-		// 3.4 Add campaign response to global response
-		decisionResponse.Campaigns = append(decisionResponse.Campaigns, campaignResponse)
-
-		// 3.5 Remember if AB campaign
+		// 3.7 Remember if AB campaign for single assignment
 		if vg.Campaign.Type == "ab" {
 			hasABCampaign = true
 		}
 	}
 
-	now := time.Now()
+	// 4. Handle all side effects in parallel
 	var wg sync.WaitGroup
 
-	if enableCache && len(newVGAssignments) > 0 && handlers.SaveCache != nil {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			// 4 Persist visitor ID new vg assignments to cache db
-			logger.Logf(InfoLevel, "saving assignments cache for visitor ID %s", visitorID)
-			err := handlers.SaveCache(envID, visitorID, &VisitorAssignments{
-				Timestamp:   now.Unix(),
-				Assignments: newVGAssignments,
-			})
-			if err != nil {
-				logger.Logf(ErrorLevel, "error occured on cache saving: %v", err)
-			}
-		}()
+	// 4.1 Saves all assignments
+	if enableCache && handlers.SaveCache != nil {
+		saveCacheAssignments(&wg, handlers, envID, visitorID, "visitor ID", newVGAssignments)
+		saveCacheAssignments(&wg, handlers, envID, anonymousID, "anonymous ID", newVGAssignmentsAnonymous)
+		saveCacheAssignments(&wg, handlers, envID, decisionGroup, "decision group", newVGAssignments)
 	}
-	if enableCache && len(newVGAssignmentsAnonymous) > 0 && handlers.SaveCache != nil {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			// 4 Persist anonymous ID new vg assignments to cache db
-			logger.Logf(InfoLevel, "saving assignments cache for anonymous ID %s", anonymousID)
-			err := handlers.SaveCache(envID, anonymousID, &VisitorAssignments{
-				Timestamp:   now.Unix(),
-				Assignments: newVGAssignmentsAnonymous,
-			})
-			if err != nil {
-				logger.Logf(ErrorLevel, "error occured on cache saving: %v", err)
-			}
-		}()
-	}
-	if enableCache && decisionGroup != "" && handlers.SaveCache != nil {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			// 5 Persist decision group new vg assignments to cache db
-			logger.Logf(InfoLevel, "saving assignments cache for decision group %s", decisionGroup)
-			err := handlers.SaveCache(envID, decisionGroup, &VisitorAssignments{
-				Timestamp:   now.Unix(),
-				Assignments: newVGAssignments,
-			})
-			if err != nil {
-				logger.Logf(ErrorLevel, "error occured on cache saving: %v", err)
-			}
-		}()
-	}
-	if len(cActivations) > 0 && handlers.ActivateCampaigns != nil {
+
+	// 4.2 Sends all activation events
+	if len(campaignActivations) > 0 && handlers.ActivateCampaigns != nil {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			tracker.TimeTrack("start activating campaigns hit")
-			logger.Logf(InfoLevel, "activating %d campaigns and variations", len(cActivations))
-			err := handlers.ActivateCampaigns(cActivations)
+			logger.Logf(InfoLevel, "activating %d campaigns and variations", len(campaignActivations))
+			err := handlers.ActivateCampaigns(campaignActivations)
 			if err != nil {
 				logger.Logf(ErrorLevel, "error occured on campaign activation: %v", err)
 			}
