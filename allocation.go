@@ -21,13 +21,19 @@ func genHashFloat(visitorID string, vgID string) (float32, error) {
 }
 
 // getRandomAllocation returns a random allocation for a variationGroup
-func getRandomAllocation(visitorID string, variationGroup *VariationGroup, isCumulativeAlloc bool) (*Variation, error) {
+func getRandomAllocation(visitorID string, decisionGroup string, variationGroup *VariationGroup, isCumulativeAlloc bool) (*Variation, error) {
 	// performance shortcut to prevent hash generation
 	if len(variationGroup.Variations) == 1 && variationGroup.Variations[0].Allocation == 100 {
 		return variationGroup.Variations[0], nil
 	}
 
-	z, err := genHashFloat(visitorID, variationGroup.ID)
+	// Use decision group by default for decision hash, otherwise use visitor ID
+	decisionID := visitorID
+	if decisionGroup != "" {
+		decisionID = decisionGroup
+	}
+
+	z, err := genHashFloat(decisionID, variationGroup.ID)
 	if err != nil {
 		return nil, err
 	}

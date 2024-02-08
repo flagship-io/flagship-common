@@ -2,6 +2,7 @@ package decision
 
 import (
 	"fmt"
+	"maps"
 	"sync"
 	"testing"
 
@@ -111,39 +112,56 @@ func TestGetCache(t *testing.T) {
 			VariationID: "v_id",
 			Activated:   true,
 		},
-	}
-	newAssignmentsDG := map[string]*VisitorCache{
 		"vg2_id": {
 			VariationID: "v2_id",
 			Activated:   true,
 		},
 	}
-	cache[envID+visitorID] = &VisitorAssignments{
-		Assignments: newAssignments,
+	newAssignmentsDG := map[string]*VisitorCache{
+		"vg_id": {
+			VariationID: "vdg_id",
+			Activated:   true,
+		},
+		"vg3_id": {
+			VariationID: "v3_id",
+			Activated:   true,
+		},
 	}
 
-	assignments, err = getCache(envID, visitorID, anonymousID, decisionGroup, false, localGetCache)
-	assert.Nil(t, err)
-	assert.EqualValues(t, newAssignments, assignments.Standard.getAssignments())
-	assert.Nil(t, assignments.Anonymous)
-
-	cache[envID+anonymousID] = &VisitorAssignments{
-		Assignments: newAssignments,
-	}
 	cache[envID+decisionGroup] = &VisitorAssignments{
 		Assignments: newAssignmentsDG,
 	}
 
+	assignments, err = getCache(envID, visitorID, anonymousID, decisionGroup, false, localGetCache)
+	assert.Nil(t, err)
+	assert.EqualValues(t, newAssignmentsDG, assignments.DecisionGroup.getAssignments())
+	assert.Nil(t, assignments.Standard)
+	assert.Nil(t, assignments.Anonymous)
+
+	cache[envID+visitorID] = &VisitorAssignments{
+		Assignments: maps.Clone(newAssignments),
+	}
+
+	assignments, err = getCache(envID, visitorID, anonymousID, decisionGroup, false, localGetCache)
+	assert.Nil(t, err)
+	assert.EqualValues(t, newAssignmentsDG, assignments.DecisionGroup.getAssignments())
+	assert.EqualValues(t, newAssignments, assignments.Standard.getAssignments())
+	assert.Nil(t, assignments.Anonymous)
+
+	cache[envID+anonymousID] = &VisitorAssignments{
+		Assignments: maps.Clone(newAssignments),
+	}
+
 	assignments, err = getCache(envID, visitorID, anonymousID, decisionGroup, true, localGetCache)
 	assert.Nil(t, err)
-	assert.Equal(t, 2, len(assignments.Standard.getAssignments()))
+	assert.EqualValues(t, newAssignmentsDG, assignments.DecisionGroup.getAssignments())
+	assert.EqualValues(t, newAssignments, assignments.Standard.getAssignments())
 	assert.EqualValues(t, newAssignments, assignments.Anonymous.getAssignments())
 }
 
 func TestDecisionCache(t *testing.T) {
 	vi := Visitor{}
 	vi.ID = "v1"
-	vi.DecisionGroup = "dg"
 	vi.Context = &targeting.Context{
 		Standard: targeting.ContextMap{
 			"isVIP": structpb.NewBoolValue(true),
@@ -172,18 +190,26 @@ func TestDecisionCache(t *testing.T) {
 	// check that campaign matching visitor is returned. Also check that the second variation is set
 	assert.Nil(t, err)
 	assert.Len(t, decision.Campaigns, 1)
-	assert.Equal(t, decision.Campaigns[0].Variation.Id.Value, "vgav2")
+	assert.Equal(t, "vgav2", decision.Campaigns[0].Variation.Id.Value)
+
+	vi.DecisionGroup = "dg"
+	decision, err = GetDecision(vi, ei, options, handlers)
+
+	// check that campaign matching visitor is returned. Also check that the second variation is set
+	assert.Nil(t, err)
+	assert.Len(t, decision.Campaigns, 1)
+	assert.Equal(t, "vgav1", decision.Campaigns[0].Variation.Id.Value)
 
 	// change the allocation so that visitor should change variation if the cache is disabled
-	ei.Campaigns[0].VariationGroups[0].Variations[0].Allocation = 90
-	ei.Campaigns[0].VariationGroups[0].Variations[1].Allocation = 10
+	ei.Campaigns[0].VariationGroups[0].Variations[0].Allocation = 10
+	ei.Campaigns[0].VariationGroups[0].Variations[1].Allocation = 90
 
 	decision, err = GetDecision(vi, ei, options, handlers)
 
 	// check that campaign matching visitor is returned. Also check that the first variation is not chosen
 	assert.Nil(t, err)
 	assert.Len(t, decision.Campaigns, 1)
-	assert.Equal(t, decision.Campaigns[0].Variation.Id.Value, "vgav1")
+	assert.Equal(t, "vgav2", decision.Campaigns[0].Variation.Id.Value)
 
 	// Reset the allocations
 	ei.Campaigns[0].VariationGroups[0].Variations[0].Allocation = 50
@@ -196,16 +222,20 @@ func TestDecisionCache(t *testing.T) {
 	decision, _ = GetDecision(vi, ei, options, handlers)
 
 	// check that campaign matching visitor is returned. Also check that the first variation is not chosen
-	assert.Equal(t, decision.Campaigns[0].Variation.Id.Value, "vgav2")
+	assert.Equal(t, decision.Campaigns[0].Variation.Id.Value, "vgav1")
 
 	// change the allocation so that visitor should change variation if the cache is disabled
-	ei.Campaigns[0].VariationGroups[0].Variations[0].Allocation = 90
-	ei.Campaigns[0].VariationGroups[0].Variations[1].Allocation = 10
+	ei.Campaigns[0].VariationGroups[0].Variations[0].Allocation = 10
+	ei.Campaigns[0].VariationGroups[0].Variations[1].Allocation = 90
 
 	decision, _ = GetDecision(vi, ei, options, handlers)
 
 	// check that campaign matching visitor is returned. Also check that the first variation is not chosen
-	assert.Equal(t, decision.Campaigns[0].Variation.Id.Value, "vgav2")
+	assert.Equal(t, decision.Campaigns[0].Variation.Id.Value, "vgav1")
+
+	// Reset the allocations
+	ei.Campaigns[0].VariationGroups[0].Variations[0].Allocation = 50
+	ei.Campaigns[0].VariationGroups[0].Variations[1].Allocation = 50
 }
 
 func TestDecisionBucketInNoCache(t *testing.T) {
@@ -246,7 +276,6 @@ func TestDecisionBucketInNoCache(t *testing.T) {
 func TestVisitorShouldNotBeAssignedWhenVariationDeleted(t *testing.T) {
 	vi := Visitor{}
 	vi.ID = "v1"
-	vi.DecisionGroup = "dg"
 	vi.Context = &targeting.Context{
 		Standard: targeting.ContextMap{
 			"isVIP": structpb.NewBoolValue(true),
@@ -255,6 +284,7 @@ func TestVisitorShouldNotBeAssignedWhenVariationDeleted(t *testing.T) {
 
 	ei := Environment{}
 	ei.ID = "e123"
+	ei.CacheEnabled = true
 	ei.Campaigns = campaigns
 	for _, vg := range ei.Campaigns[0].VariationGroups {
 		vg.Campaign = ei.Campaigns[0]
@@ -273,6 +303,7 @@ func TestVisitorShouldNotBeAssignedWhenVariationDeleted(t *testing.T) {
 	// delete variation and check that visitor is not returned
 	campaignVars := ei.Campaigns[0].VariationGroups[0].Variations
 	ei.Campaigns[0].VariationGroups[0].Variations = campaignVars[1:]
+
 	decision, _ := GetDecision(vi, ei, options, handlers)
 
 	assert.Len(t, decision.Campaigns, 0)
