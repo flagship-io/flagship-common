@@ -7,6 +7,7 @@ import (
 
 	"github.com/flagship-io/flagship-common/targeting"
 	protoTargeting "github.com/flagship-io/flagship-proto/targeting"
+	"golang.org/x/mod/semver"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -142,12 +143,47 @@ func targetingMatchOperatorString(operator protoTargeting.Targeting_TargetingOpe
 		return strings.Contains(strings.ToLower(contextValue), strings.ToLower(targetingValue)), nil
 	case protoTargeting.Targeting_NOT_CONTAINS:
 		return !strings.Contains(strings.ToLower(contextValue), strings.ToLower(targetingValue)), nil
+	case protoTargeting.Targeting_SEMVER_LOWER_THAN:
+		return isValidSemver(contextValue) &&
+			isValidSemver(targetingValue) &&
+			semver.Compare(getGoSemver(contextValue), getGoSemver(targetingValue)) == -1, nil
+	case protoTargeting.Targeting_SEMVER_GREATER_THAN:
+		return isValidSemver(contextValue) &&
+			isValidSemver(targetingValue) &&
+			semver.Compare(getGoSemver(contextValue), getGoSemver(targetingValue)) == 1, nil
+	case protoTargeting.Targeting_SEMVER_LOWER_THAN_OR_EQUALS:
+		return isValidSemver(contextValue) &&
+			isValidSemver(targetingValue) &&
+			semver.Compare(getGoSemver(contextValue), getGoSemver(targetingValue)) <= 0, nil
+	case protoTargeting.Targeting_SEMVER_GREATER_THAN_OR_EQUALS:
+		return isValidSemver(contextValue) &&
+			isValidSemver(targetingValue) &&
+			semver.Compare(getGoSemver(contextValue), getGoSemver(targetingValue)) >= 0, nil
+	case protoTargeting.Targeting_SEMVER_EQUALS:
+		return isValidSemver(contextValue) &&
+			isValidSemver(targetingValue) &&
+			semver.Compare(getGoSemver(contextValue), getGoSemver(targetingValue)) == 0, nil
+	case protoTargeting.Targeting_SEMVER_NOT_EQUALS:
+		return isValidSemver(contextValue) &&
+			isValidSemver(targetingValue) &&
+			semver.Compare(getGoSemver(contextValue), getGoSemver(targetingValue)) != 0, nil
 	// case "regex":
 	// 	match, err := regexp.MatchString(targetingValue, contextValue)
 	// 	return match, err
 	default:
 		return false, errors.New("Operator not handled")
 	}
+}
+
+func getGoSemver(v string) string {
+	if string(v[0]) != "v" {
+		return "v" + v
+	}
+	return v
+}
+
+func isValidSemver(v string) bool {
+	return semver.IsValid(getGoSemver(v))
 }
 
 func targetingMatchOperatorNumber(operator protoTargeting.Targeting_TargetingOperator, targetingValue float64, contextValue float64) (bool, error) {
