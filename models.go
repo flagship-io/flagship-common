@@ -48,13 +48,15 @@ type Visitor struct {
 }
 
 type Environment struct {
-	ID                string
-	Campaigns         []*Campaign
-	IsPanic           bool
-	SingleAssignment  bool
-	UseReconciliation bool
-	CacheEnabled      bool
-	Troubleshooting   *troubleshootingProto.Troubleshooting
+	ID                   string
+	Campaigns            []*Campaign
+	IsPanic              bool
+	SingleAssignment     bool
+	UseReconciliation    bool
+	CacheEnabled         bool
+	EaiCollectEnabled    bool
+	EaiActivationEnabled bool
+	Troubleshooting      *troubleshootingProto.Troubleshooting
 }
 
 type DecisionOptions struct {
